@@ -1354,17 +1354,25 @@ async function exportAll() {
     // wav
     folder.file(fname + '.wav', await blob.arrayBuffer());
 
-    // oto.ini line — kana alias is just the dn (strip spaces for alias in sequences)
+    // oto.ini line — calculate values from actual clip duration
     const alias = dn.replace(/\s+/g, '');
-    otoLines.push(`${fname}.wav=${alias},0,80,-500,40,30`);
+    let audioBuf = decodedBuffers[word];
+    if (!audioBuf) {
+      const ab = await blob.arrayBuffer();
+      audioBuf = await ctx.decodeAudioData(ab.slice(0));
+      decodedBuffers[word] = audioBuf;
+    }
+    const durMs = (audioBuf.length / audioBuf.sampleRate) * 1000;
+    // safe oto values relative to actual duration:
+    // offset=0, consonant=30% in, cutoff=-(last 20ms), preutterance=20% in, overlap=10% in
+    const consonant = Math.round(durMs * 0.30);
+    const cutoff    = -Math.round(durMs * 0.20);  // negative = from end
+    const preutter  = Math.round(durMs * 0.20);
+    const overlap   = Math.round(durMs * 0.10);
+    otoLines.push(`${fname}.wav=${alias},0,${consonant},${cutoff},${preutter},${overlap}`);
 
-    // .frq — decode audio and run pitch analysis
+    // .frq — use already-decoded buffer
     try {
-      let audioBuf = decodedBuffers[word];
-      if (!audioBuf) {
-        const ab = await blob.arrayBuffer();
-        audioBuf = await ctx.decodeAudioData(ab.slice(0));
-      }
       const frqBinary = generateFrqBinary(audioBuf);
       folder.file(fname + '.wav.frq', frqBinary);
     } catch(e) {
