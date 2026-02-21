@@ -84,7 +84,7 @@
   .slider-pitch-wrap { position: relative; display: inline-flex; align-items: center; }
   .slider-pitch-line {
     position: absolute; top: 50%; transform: translateY(-50%);
-    width: 2px; height: 14px; background: var(--accent);
+    width: 2px; height: 22px; background: var(--accent);
     border-radius: 1px; pointer-events: none;
     box-shadow: 0 0 6px var(--accent), 0 0 12px rgba(0,255,204,0.4);
     opacity: 0; transition: opacity 0.15s, left 0.05s;
@@ -631,10 +631,10 @@ function startSilenceWatch() {
     let rms = 0;
     for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
     rms = Math.sqrt(rms / buf.length);
-    if (rms < 0.002) {
+    if (rms < 0.0005) {
       silentStreak++;
-      // 3 seconds of total silence = something's wrong
-      if (silentStreak >= 6) { triggerMicPanic(); }
+      // 10 seconds of complete dead silence = something's actually wrong
+      if (silentStreak >= 20) { triggerMicPanic(); }
     } else {
       silentStreak = 0;
       clearMicPanic();
