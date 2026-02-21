@@ -385,17 +385,11 @@
   </div>
 
   <div class="main-top">
-    <div class="tone-control">
-      <label>TARGET TONE (HZ)</label>
+    <div class="tone-control" style="flex:1">
+      <label>TARGET TONE</label>
       <div class="tone-row">
         <input type="range" id="toneSlider" min="80" max="800" value="220" oninput="onToneChange()">
         <span class="tone-val" id="toneVal">220 Hz</span>
-        <button class="preview-btn" id="previewBtn" onclick="togglePreviewTone()">&#9834; PREVIEW</button>
-      </div>
-    </div>
-    <div class="tone-control" style="margin-left:auto">
-      <label>NOTE</label>
-      <div class="tone-row">
         <select id="noteSelect" onchange="onNoteSelect()">
           <option value="82.41">E2 - 82 Hz</option><option value="87.31">F2 - 87 Hz</option>
           <option value="98.00">G2 - 98 Hz</option><option value="110.00">A2 - 110 Hz</option>
@@ -407,6 +401,7 @@
           <option value="392.00">G4 - 392 Hz</option><option value="440.00">A4 - 440 Hz</option>
           <option value="523.25">C5 - 523 Hz</option>
         </select>
+        <button class="preview-btn" id="previewBtn" onclick="togglePreviewTone()">&#9834; PREVIEW</button>
       </div>
     </div>
   </div>
@@ -873,10 +868,24 @@ function updatePitchTargetLine() {
 function selectWord(i) { stopPlayback(); currentIdx = i; renderWordList(); renderMain(); }
 
 // ---- TONE ----
+function snapNoteSelect(freq) {
+  const sel = document.getElementById('noteSelect');
+  const selMob = document.getElementById('noteSelectMob');
+  if (!sel) return;
+  let closest = null, minDiff = Infinity;
+  for (const opt of sel.options) {
+    const diff = Math.abs(parseFloat(opt.value) - freq);
+    if (diff < minDiff) { minDiff = diff; closest = opt.value; }
+  }
+  if (closest) { sel.value = closest; if (selMob) selMob.value = closest; }
+}
 function onToneChange() {
   targetFreq = parseFloat(document.getElementById('toneSlider').value);
   document.getElementById('toneVal').textContent = targetFreq.toFixed(0) + ' Hz';
   document.getElementById('statusTone').textContent = targetFreq.toFixed(0) + ' Hz';
+  snapNoteSelect(targetFreq);
+  const mob = document.getElementById('toneSliderMob'); if (mob) mob.value = targetFreq;
+  const mobVal = document.getElementById('toneValMob'); if (mobVal) mobVal.textContent = targetFreq.toFixed(0) + ' Hz';
   updatePitchTargetLine();
 }
 function onNoteSelect() {
@@ -884,6 +893,9 @@ function onNoteSelect() {
   document.getElementById('toneSlider').value = val; targetFreq = val;
   document.getElementById('toneVal').textContent = val.toFixed(0) + ' Hz';
   document.getElementById('statusTone').textContent = val.toFixed(0) + ' Hz';
+  const mob = document.getElementById('toneSliderMob'); if (mob) mob.value = val;
+  const mobVal = document.getElementById('toneValMob'); if (mobVal) mobVal.textContent = val.toFixed(0) + ' Hz';
+  const selMob = document.getElementById('noteSelectMob'); if (selMob) selMob.value = val;
   updatePitchTargetLine();
 }
 function togglePreviewTone() {
@@ -1375,8 +1387,7 @@ function onNoteSelectMob() {
   document.getElementById('toneVal').textContent = val.toFixed(0) + ' Hz';
   document.getElementById('toneValMob').textContent = val.toFixed(0) + ' Hz';
   document.getElementById('statusTone').textContent = val.toFixed(0) + ' Hz';
-  // sync desktop note select
-  const dns = document.getElementById('noteSelect'); if (dns) dns.value = val;
+  snapNoteSelect(val);
   updatePitchTargetLine();
 }
 function onToneChangeMob() {
@@ -1386,6 +1397,7 @@ function onToneChangeMob() {
   document.getElementById('toneVal').textContent = val.toFixed(0) + ' Hz';
   document.getElementById('toneValMob').textContent = val.toFixed(0) + ' Hz';
   document.getElementById('statusTone').textContent = val.toFixed(0) + ' Hz';
+  snapNoteSelect(val);
   updatePitchTargetLine();
 }
 function onOffsetChangeMob() {
