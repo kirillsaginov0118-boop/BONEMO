@@ -553,16 +553,17 @@
 <!-- EXPORT MODAL -->
 <div class="modal-overlay" id="exportModal">
   <div class="modal">
-    <h2>// EXPORT COMPLETE //</h2>
-    <p id="exportMsg">your recordings are packaged and ready.</p>
+    <h2>// EXPORT //</h2>
+    <p id="exportMsg">name your voicebank and hit export.</p>
     <div style="margin-bottom:12px">
       <label style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--muted);letter-spacing:0.15em;display:block;margin-bottom:6px">VOICEBANK NAME</label>
-      <input type="text" id="vbNameInput" class="modal-input" placeholder="MyVoicebank" value="MyVoicebank" style="width:100%">
+      <input type="text" id="vbNameInput" class="modal-input" placeholder="MyVoicebank" style="width:100%">
       <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--muted);margin-top:6px">used for character.txt, character.yaml, and zip folder name</div>
     </div>
     <div id="exportProgressMsg" style="font-family:'Share Tech Mono',monospace;font-size:0.75rem;color:var(--accent3);margin-bottom:10px;display:none">generating .frq files...</div>
     <div class="modal-row">
-      <button class="modal-btn" id="downloadZipBtn">download .zip</button>
+      <button class="modal-btn" id="exportConfirmBtn" onclick="runExport()">&#8659; export</button>
+      <button class="modal-btn" id="downloadZipBtn" style="display:none">download .zip</button>
       <button class="modal-btn cancel" onclick="closeModal('exportModal')">close</button>
     </div>
   </div>
@@ -605,23 +606,151 @@ function toggleMicMute() {
 
 // ---- ROMAJI MAP ----
 const romajiMap = {
+  // vowels
   'あ':'a','い':'i','う':'u','え':'e','お':'o',
+  // small vowels standalone
+  'ぁ':'a','ぃ':'i','ぅ':'u','ぇ':'e','ぉ':'o',
+  // k
   'か':'ka','き':'ki','く':'ku','け':'ke','こ':'ko',
+  // s
   'さ':'sa','し':'shi','す':'su','せ':'se','そ':'so',
+  // t
   'た':'ta','ち':'chi','つ':'tsu','て':'te','と':'to',
+  // n
   'な':'na','に':'ni','ぬ':'nu','ね':'ne','の':'no',
+  // h
   'は':'ha','ひ':'hi','ふ':'fu','へ':'he','ほ':'ho',
+  // m
   'ま':'ma','み':'mi','む':'mu','め':'me','も':'mo',
+  // y
   'や':'ya','ゆ':'yu','よ':'yo',
+  // small y standalone
+  'ゃ':'ya','ゅ':'yu','ょ':'yo',
+  // r
   'ら':'ra','り':'ri','る':'ru','れ':'re','ろ':'ro',
+  // w
   'わ':'wa','を':'wo','ん':'n',
+  // voiced
   'が':'ga','ぎ':'gi','ぐ':'gu','げ':'ge','ご':'go',
   'ざ':'za','じ':'ji','ず':'zu','ぜ':'ze','ぞ':'zo',
-  'だ':'da','ぢ':'di','づ':'du','で':'de','ど':'do',
+  'だ':'da','ぢ':'ji','づ':'zu','で':'de','ど':'do',
   'ば':'ba','び':'bi','ぶ':'bu','べ':'be','ぼ':'bo',
-  'ぱ':'pa','ぴ':'pi','ぷ':'pu','ぺ':'pe','ぽ':'po'
+  // p
+  'ぱ':'pa','ぴ':'pi','ぷ':'pu','ぺ':'pe','ぽ':'po',
+  // katakana vowels
+  'ア':'a','イ':'i','ウ':'u','エ':'e','オ':'o',
+  'ァ':'a','ィ':'i','ゥ':'u','ェ':'e','ォ':'o',
+  // k
+  'カ':'ka','キ':'ki','ク':'ku','ケ':'ke','コ':'ko',
+  'ガ':'ga','ギ':'gi','グ':'gu','ゲ':'ge','ゴ':'go',
+  // s
+  'サ':'sa','シ':'shi','ス':'su','セ':'se','ソ':'so',
+  'ザ':'za','ジ':'ji','ズ':'zu','ゼ':'ze','ゾ':'zo',
+  // t
+  'タ':'ta','チ':'chi','ツ':'tsu','テ':'te','ト':'to',
+  'ダ':'da','ヂ':'ji','ヅ':'zu','デ':'de','ド':'do',
+  // n
+  'ナ':'na','ニ':'ni','ヌ':'nu','ネ':'ne','ノ':'no',
+  // h
+  'ハ':'ha','ヒ':'hi','フ':'fu','ヘ':'he','ホ':'ho',
+  'バ':'ba','ビ':'bi','ブ':'bu','ベ':'be','ボ':'bo',
+  'パ':'pa','ピ':'pi','プ':'pu','ペ':'pe','ポ':'po',
+  // m
+  'マ':'ma','ミ':'mi','ム':'mu','メ':'me','モ':'mo',
+  // y
+  'ヤ':'ya','ユ':'yu','ヨ':'yo',
+  'ャ':'ya','ュ':'yu','ョ':'yo',
+  // r
+  'ラ':'ra','リ':'ri','ル':'ru','レ':'re','ロ':'ro',
+  // w
+  'ワ':'wa','ヲ':'wo','ン':'n',
+  // v
+  'ヴ':'v',
+  // misc
+  'っ':'っ','ッ':'ッ', // handled separately
 };
-function toRomaji(text) { return text.split('').map(c => romajiMap[c] || c).join(''); }
+
+// digraph combos: base consonant stem + small kana → romaji
+const digraphMap = {
+  // き/キ
+  'きゃ':'kya','きゅ':'kyu','きょ':'kyo','きぇ':'kye','きぃ':'kyi',
+  'ぎゃ':'gya','ぎゅ':'gyu','ぎょ':'gyo','ぎぇ':'gye',
+  // し/シ
+  'しゃ':'sha','しゅ':'shu','しょ':'sho','しぇ':'she','しぃ':'shi',
+  'じゃ':'ja','じゅ':'ju','じょ':'jo','じぇ':'je',
+  // ち/チ
+  'ちゃ':'cha','ちゅ':'chu','ちょ':'cho','ちぇ':'che',
+  // に/ニ
+  'にゃ':'nya','にゅ':'nyu','にょ':'nyo','にぇ':'nye',
+  // ひ/ヒ
+  'ひゃ':'hya','ひゅ':'hyu','ひょ':'hyo','ひぇ':'hye',
+  'びゃ':'bya','びゅ':'byu','びょ':'byo',
+  'ぴゃ':'pya','ぴゅ':'pyu','ぴょ':'pyo','ぴぇ':'pye',
+  // み/ミ
+  'みゃ':'mya','みゅ':'myu','みょ':'myo','みぇ':'mye',
+  // り/リ
+  'りゃ':'rya','りゅ':'ryu','りょ':'ryo','りぇ':'rye',
+  // て/で + small
+  'てぃ':'ti','てゅ':'tyu','てぅ':'tyu',
+  'でぃ':'di','でゅ':'dyu','でぅ':'dyu',
+  // と/ど + small u
+  'とぅ':'tu','どぅ':'du',
+  // う + small vowels
+  'うぁ':'wa','うぃ':'wi','うぇ':'we','うぉ':'wo',
+  'うぅ':'wu',
+  // ヴ combos
+  'ヴぁ':'va','ヴぃ':'vi','ヴぇ':'ve','ヴぉ':'vo','ヴゅ':'vyu',
+  // ふ + small
+  'ふぁ':'fa','ふぃ':'fi','ふぇ':'fe','ふぉ':'fo','ふゅ':'fyu',
+  // す/ず + small i
+  'すぃ':'si','ずぃ':'zi',
+  // おぁ
+  'おぁ':'oa',
+  // katakana digraphs
+  'キャ':'kya','キュ':'kyu','キョ':'kyo','キェ':'kye',
+  'ギャ':'gya','ギュ':'gyu','ギョ':'gyo',
+  'シャ':'sha','シュ':'shu','ショ':'sho','シェ':'she',
+  'ジャ':'ja','ジュ':'ju','ジョ':'jo','ジェ':'je',
+  'チャ':'cha','チュ':'chu','チョ':'cho','チェ':'che',
+  'ニャ':'nya','ニュ':'nyu','ニョ':'nyo',
+  'ヒャ':'hya','ヒュ':'hyu','ヒョ':'hyo',
+  'ビャ':'bya','ビュ':'byu','ビョ':'byo',
+  'ピャ':'pya','ピュ':'pyu','ピョ':'pyo',
+  'ミャ':'mya','ミュ':'myu','ミョ':'myo',
+  'リャ':'rya','リュ':'ryu','リョ':'ryo',
+  'ティ':'ti','テュ':'tyu','ディ':'di','デュ':'dyu',
+  'トゥ':'tu','ドゥ':'du',
+  'ファ':'fa','フィ':'fi','フェ':'fe','フォ':'fo','フュ':'fyu',
+  'ヴァ':'va','ヴィ':'vi','ヴェ':'ve','ヴォ':'vo',
+  'ウィ':'wi','ウェ':'we','ウォ':'wo',
+};
+
+const smallKana = new Set(['ゃ','ゅ','ょ','ぁ','ぃ','ぅ','ぇ','ぉ','ャ','ュ','ョ','ァ','ィ','ゥ','ェ','ォ']);
+
+function toRomaji(text) {
+  const chars = [...text]; // unicode-safe split
+  let result = '';
+  let i = 0;
+  while (i < chars.length) {
+    const c = chars[i];
+    const next = chars[i + 1];
+    // っ/ッ — double the next consonant
+    if (c === 'っ' || c === 'ッ') {
+      const nextRom = next ? toRomaji(next) : '';
+      result += nextRom[0] || '';
+      i++; continue;
+    }
+    // try digraph first
+    if (next && smallKana.has(next)) {
+      const digraph = digraphMap[c + next];
+      if (digraph) { result += digraph; i += 2; continue; }
+    }
+    // single char
+    result += romajiMap[c] || c;
+    i++;
+  }
+  return result;
+}
 
 // replaces underscores with spaces for display/export. ga_wi_sa → ga wi sa
 function displayName(w) { return w.replace(/_/g, ' '); }
@@ -1323,33 +1452,41 @@ function autoCorrelateBuffer(buf, sr) {
 // ---- EXPORT ----
 async function exportAll() {
   if (!Object.keys(recordingBlobs).length) { alert('no recordings yet... hold the record key first.'); return; }
-  openModal('exportModal');
-  document.getElementById('exportMsg').textContent = 'preparing export...';
+  // reset modal state
+  document.getElementById('exportMsg').textContent = 'name your voicebank and hit export.';
   document.getElementById('exportProgressMsg').style.display = 'none';
-  document.getElementById('downloadZipBtn').onclick = null;
-  document.getElementById('downloadZipBtn').textContent = 'building...';
-  document.getElementById('downloadZipBtn').style.opacity = '0.5';
+  document.getElementById('exportConfirmBtn').style.display = '';
+  document.getElementById('downloadZipBtn').style.display = 'none';
+  document.getElementById('vbNameInput').value = '';
+  openModal('exportModal');
+}
+
+async function runExport() {
+  const vbName = (document.getElementById('vbNameInput')?.value.trim() || 'MyVoicebank').replace(/[\\/:*?"<>|]/g, '_');
+
+  document.getElementById('exportConfirmBtn').style.display = 'none';
+  document.getElementById('exportMsg').textContent = 'building...';
+  document.getElementById('exportProgressMsg').style.display = 'block';
+  document.getElementById('exportProgressMsg').textContent = 'loading...';
 
   if (!document.querySelector('script[src*="jszip"]')) {
     const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; document.head.appendChild(s);
     await new Promise(res => s.onload = res);
   }
 
-  const vbName = (document.getElementById('vbNameInput')?.value.trim() || 'MyVoicebank').replace(/[\\/:*?"<>|]/g, '_');
   const zip = new JSZip();
   const folder = zip.folder(vbName);
   const otoLines = [];
   const entries = Object.entries(recordingBlobs);
 
-  document.getElementById('exportProgressMsg').style.display = 'block';
   document.getElementById('exportProgressMsg').textContent = `generating .frq files (0 / ${entries.length})...`;
 
   const ctx = getAudioCtx();
 
   for (let idx = 0; idx < entries.length; idx++) {
     const [word, blob] = entries[idx];
-    const dn = displayName(word);         // e.g. "あ" or "ka ki"
-    const fname = '_' + dn;               // e.g. "_あ" or "_ka ki"
+    const dn = displayName(word);
+    const fname = '_' + dn;
 
     // wav
     folder.file(fname + '.wav', await blob.arrayBuffer());
@@ -1363,15 +1500,13 @@ async function exportAll() {
       decodedBuffers[word] = audioBuf;
     }
     const durMs = (audioBuf.length / audioBuf.sampleRate) * 1000;
-    // safe oto values relative to actual duration:
-    // offset=0, consonant=30% in, cutoff=-(last 20ms), preutterance=20% in, overlap=10% in
     const consonant = Math.round(durMs * 0.30);
-    const cutoff    = -Math.round(durMs * 0.20);  // negative = from end
+    const cutoff    = -Math.round(durMs * 0.20);
     const preutter  = Math.round(durMs * 0.20);
     const overlap   = Math.round(durMs * 0.10);
     otoLines.push(`${fname}.wav=${alias},0,${consonant},${cutoff},${preutter},${overlap}`);
 
-    // .frq — use already-decoded buffer
+    // .frq
     try {
       const frqBinary = generateFrqBinary(audioBuf);
       folder.file(fname + '.wav.frq', frqBinary);
@@ -1380,30 +1515,25 @@ async function exportAll() {
     }
 
     document.getElementById('exportProgressMsg').textContent = `generating .frq files (${idx + 1} / ${entries.length})...`;
-    // yield to UI thread every few items
     if (idx % 5 === 0) await new Promise(r => setTimeout(r, 0));
   }
 
   // oto.ini (UTF-8 with BOM)
   folder.file('oto.ini', '\uFEFF' + otoLines.join('\r\n'));
-
-  // character.txt
   folder.file('character.txt', `name=${vbName}\r\n`);
-
-  // character.yaml
   folder.file('character.yaml',
     `name: ${vbName}\r\ntext_file_encoding: utf-8\r\nportrait_opacity: 0.67\r\nportrait_height: 0\r\n`
   );
 
   document.getElementById('exportProgressMsg').style.display = 'none';
-  document.getElementById('exportMsg').textContent =
-    `${entries.length} wavs + frq files + oto.ini + character files ready.`;
+  document.getElementById('exportMsg').textContent = `${entries.length} wavs + frq files + oto.ini + character files ready.`;
 
-  const content = await zip.generateAsync({ type: 'blob' });
+  // encodeFileName: identity fn preserves UTF-8 filenames (fixes #U3042 etc)
+  const content = await zip.generateAsync({ type: 'blob', encodeFileName: s => s });
   const url = URL.createObjectURL(content);
   const dlBtn = document.getElementById('downloadZipBtn');
-  dlBtn.textContent = 'download .zip';
-  dlBtn.style.opacity = '';
+  dlBtn.style.display = '';
+  dlBtn.textContent = '&#8659; download .zip';
   dlBtn.onclick = () => {
     const a = document.createElement('a');
     a.href = url; a.download = vbName + '.zip'; a.click();
