@@ -144,6 +144,11 @@
   .keys-hint { font-family: 'Share Tech Mono', monospace; font-size: 0.65rem; color: var(--muted); text-align: center; }
   .keys-hint .key { display: inline-block; padding: 2px 6px; border: 1px solid var(--muted); border-radius: 2px; margin: 0 3px; color: var(--text); }
 
+  /* ---- MIC IN HEADER (desktop) ---- */
+  .header-mic { display: flex; flex-direction: column; gap: 4px; margin-left: auto; }
+  .header-mic label { font-family: 'Share Tech Mono', monospace; font-size: 0.6rem; color: var(--muted); letter-spacing: 0.15em; }
+  .header-mic select { font-size: 0.8rem; padding: 5px 10px; max-width: 220px; }
+
   /* ---- MOBILE RECORD BUTTON ---- */
   .mobile-rec-btn {
     display: none;
@@ -162,19 +167,88 @@
   .mobile-rec-btn .rec-ring { width: 20px; height: 20px; border-radius: 50%; background: var(--accent2); box-shadow: 0 0 10px var(--accent2); }
   .mobile-rec-btn.recording-active { background: rgba(255,68,102,0.25); box-shadow: 0 0 40px rgba(255,68,102,0.5); transform: scale(1.05); }
 
+  /* ---- MOBILE SETTINGS DRAWER ---- */
+  .mob-settings-btn {
+    display: none; align-items: center; justify-content: center;
+    width: 38px; height: 38px; border: 1px solid var(--border);
+    background: var(--bg3); color: var(--muted); border-radius: 2px;
+    cursor: pointer; font-size: 1.1rem; transition: all 0.15s; flex-shrink: 0;
+  }
+  .mob-settings-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .mob-settings-drawer {
+    display: none; position: fixed; inset: 0; z-index: 500;
+  }
+  .mob-settings-drawer.open { display: block; }
+  .mob-settings-scrim { position: absolute; inset: 0; background: rgba(0,0,0,0.7); }
+  .mob-settings-panel {
+    position: absolute; top: 0; left: 0; bottom: 0; width: 300px;
+    background: var(--bg2); border-right: 1px solid var(--border);
+    overflow-y: auto; display: flex; flex-direction: column;
+  }
+  .mob-settings-panel::-webkit-scrollbar { width: 4px; }
+  .mob-settings-panel::-webkit-scrollbar-thumb { background: var(--border); }
+  .mob-settings-header {
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: 'Share Tech Mono', monospace; font-size: 0.7rem;
+    color: var(--accent); letter-spacing: 0.2em;
+  }
+  .mob-settings-close {
+    background: none; border: none; color: var(--muted); font-size: 1.2rem;
+    cursor: pointer; padding: 0 4px; line-height: 1;
+  }
+
+  /* ---- MOBILE WORD PANEL (bottom) ---- */
+  .mob-word-panel {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 400;
+    background: var(--bg2); border-top: 1px solid var(--border);
+    flex-direction: column;
+  }
+  .mob-word-panel.open { display: flex; }
+  .mob-word-tab {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 399;
+    background: var(--bg2); border-top: 1px solid var(--border);
+    padding: 8px 16px; font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem; color: var(--muted); letter-spacing: 0.15em;
+    align-items: center; justify-content: space-between; cursor: pointer;
+    transition: color 0.15s;
+  }
+  .mob-word-tab:hover { color: var(--accent); }
+  .mob-word-tab-arrow { transition: transform 0.2s; }
+  .mob-word-tab.tab-open .mob-word-tab-arrow { transform: rotate(180deg); }
+  .mob-word-list-wrap {
+    max-height: 45vh; overflow-y: auto; padding: 6px;
+  }
+  .mob-word-list-wrap::-webkit-scrollbar { width: 4px; }
+  .mob-word-list-wrap::-webkit-scrollbar-thumb { background: var(--border); }
+
   @media (max-width: 700px) {
-    .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; height: auto; min-height: calc(100vh - 64px); }
-    .sidebar { grid-row: unset; border-right: none; border-bottom: 1px solid var(--border); max-height: 260px; }
-    .status-bar { grid-column: 1; flex-wrap: wrap; gap: 10px; }
+    /* hide desktop sidebar and status bar entirely */
+    .sidebar { display: none !important; }
+    .status-bar { display: none !important; }
+    .main-top { display: none !important; }
+    .header-mic { display: none !important; }
+
+    /* layout */
+    .app { grid-template-columns: 1fr; grid-template-rows: 1fr; height: calc(100vh - 64px); }
+    .main-content { padding: 16px; gap: 14px; padding-bottom: 60px; }
+
+    /* header */
     h1 { font-size: 1.4rem; }
-    .skull { font-size: 1.8rem; }
-    header { padding: 12px 16px; }
-    .main-top { padding: 12px 16px; gap: 12px; }
-    .main-content { padding: 16px; gap: 14px; }
-    .current-word { font-size: 3.5rem; }
+    .skull svg { width: 48px !important; height: 30px !important; }
+    header { padding: 12px 16px; gap: 12px; }
+
+    /* show mobile-only elements */
     .mobile-rec-btn { display: flex; }
     .record-hint { display: none; }
+    .mob-settings-btn { display: flex; }
+    .mob-word-tab { display: flex; }
+
+    .current-word { font-size: 3.5rem; min-height: 70px; }
     input[type=range] { width: 130px; }
+
+    /* modal fix */
+    .modal { min-width: unset; width: calc(100vw - 32px); max-width: 100%; }
   }
 </style>
 </head>
@@ -186,6 +260,15 @@
     <h1>BONEMO</h1>
     <div class="subtitle">// skeleton voice recording studio // v1.2 //</div>
   </div>
+  <!-- desktop mic selector -->
+  <div class="header-mic">
+    <label>MICROPHONE</label>
+    <select id="micSelect" onchange="onMicChange()">
+      <option value="">default mic</option>
+    </select>
+  </div>
+  <!-- mobile: settings icon -->
+  <button class="mob-settings-btn" onclick="openMobSettings()" title="Settings">&#9881;</button>
 </header>
 
 <div class="app">
@@ -193,7 +276,6 @@
     <div class="sidebar-section">
       <h3>Setup</h3>
       <button class="btn primary" onclick="loadReclist()">&#9654; Load reclist.txt</button>
-      <button class="btn" id="saveFolderBtn" onclick="chooseSaveFolder()">&#8680; Set save folder</button>
     </div>
     <div class="sidebar-section">
       <h3>Session</h3>
@@ -283,12 +365,98 @@
   <div class="status-bar">
     <div class="status-item">WORDS: <span id="statusTotal">0</span></div>
     <div class="status-item">DONE: <span id="statusDone">0</span></div>
-    <div class="status-item">FOLDER: <span id="statusFolder">not set</span></div>
     <div class="status-item">TARGET: <span id="statusTone">220 Hz</span></div>
   </div>
 </div>
 
-<!-- RECLIST MODAL -->
+<!-- MOBILE SETTINGS DRAWER -->
+<div class="mob-settings-drawer" id="mobSettingsDrawer">
+  <div class="mob-settings-scrim" onclick="closeMobSettings()"></div>
+  <div class="mob-settings-panel">
+    <div class="mob-settings-header">
+      // SETTINGS //
+      <button class="mob-settings-close" onclick="closeMobSettings()">&#x2715;</button>
+    </div>
+    <div class="sidebar-section">
+      <h3>Setup</h3>
+      <button class="btn primary" onclick="loadReclist();closeMobSettings()">&#9654; Load reclist.txt</button>
+    </div>
+    <div class="sidebar-section">
+      <h3>Microphone</h3>
+      <select id="micSelectMob" onchange="onMicChangeMob()" style="width:100%">
+        <option value="">default mic</option>
+      </select>
+    </div>
+    <div class="sidebar-section">
+      <h3>Session</h3>
+      <button class="btn" onclick="exportAll();closeMobSettings()">&#8659; Export WAV + oto.ini</button>
+      <button class="btn danger" onclick="clearAll()">&#x2715; Clear recordings</button>
+    </div>
+    <div class="sidebar-section">
+      <h3>Display</h3>
+      <button class="btn" id="romajiToggleBtnMob" onclick="toggleRomaji()">Show Romaji: OFF</button>
+      <button class="btn" id="autoAdvanceBtnMob" onclick="toggleAutoAdvance()" style="margin-top:6px">Auto-advance: ON</button>
+    </div>
+    <div class="sidebar-section">
+      <h3>Target Tone</h3>
+      <div class="tone-control" style="width:100%">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <select id="noteSelectMob" onchange="onNoteSelectMob()" style="flex:1">
+            <option value="82.41">E2 - 82 Hz</option><option value="87.31">F2 - 87 Hz</option>
+            <option value="98.00">G2 - 98 Hz</option><option value="110.00">A2 - 110 Hz</option>
+            <option value="130.81">C3 - 131 Hz</option><option value="146.83">D3 - 147 Hz</option>
+            <option value="164.81">E3 - 165 Hz</option><option value="174.61">F3 - 175 Hz</option>
+            <option value="196.00">G3 - 196 Hz</option><option value="220.00" selected>A3 - 220 Hz</option>
+            <option value="261.63">C4 - 262 Hz</option><option value="293.66">D4 - 294 Hz</option>
+            <option value="329.63">E4 - 330 Hz</option><option value="349.23">F4 - 349 Hz</option>
+            <option value="392.00">G4 - 392 Hz</option><option value="440.00">A4 - 440 Hz</option>
+            <option value="523.25">C5 - 523 Hz</option>
+          </select>
+          <button class="preview-btn" onclick="togglePreviewTone()">&#9834;</button>
+        </div>
+        <input type="range" id="toneSliderMob" min="80" max="800" value="220" oninput="onToneChangeMob()" style="width:100%">
+        <div style="text-align:center;font-family:'Share Tech Mono',monospace;font-size:0.8rem;color:var(--accent);margin-top:4px" id="toneValMob">220 Hz</div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <h3>Recording Offset</h3>
+      <div class="tone-control" style="width:100%">
+        <input type="range" id="recOffsetSliderMob" min="-300" max="300" value="0" step="10" oninput="onOffsetChangeMob()" style="width:100%">
+        <div style="display:flex;justify-content:space-between;margin-top:4px">
+          <span style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--muted)">-300ms</span>
+          <span class="tone-val" id="recOffsetValMob" style="font-size:0.8rem;min-width:unset">0 ms</span>
+          <span style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--muted)">+300ms</span>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <h3 style="display:flex;align-items:center;justify-content:space-between">
+        Silence Trim
+        <span style="display:flex;gap:6px;font-size:0.6rem">
+          <span id="trimStartBtnMob" onclick="toggleTrimStart()" title="trim start" style="padding:2px 6px;border:1px solid var(--accent);color:var(--accent);border-radius:2px;cursor:pointer;opacity:1;transition:opacity 0.15s">S</span>
+          <span id="trimEndBtnMob" onclick="toggleTrimEnd()" title="trim end" style="padding:2px 6px;border:1px solid var(--muted);color:var(--muted);border-radius:2px;cursor:pointer;opacity:0.4;transition:opacity 0.15s">E</span>
+        </span>
+      </h3>
+      <div class="tone-control" style="width:100%">
+        <input type="range" id="silenceSliderMob" min="0" max="0.05" value="0" step="0.001" oninput="onSilenceChangeMob()" style="width:100%">
+        <div style="text-align:center;font-family:'Share Tech Mono',monospace;font-size:0.8rem;color:var(--accent);margin-top:4px" id="silenceValMob">off</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE WORD LIST TAB (bottom) -->
+<div class="mob-word-tab" id="mobWordTab" onclick="toggleMobWordList()">
+  <span>WORD LIST &nbsp;<span id="mobWordProgress">0 / 0</span></span>
+  <span class="mob-word-tab-arrow">&#9650;</span>
+</div>
+<div class="mob-word-panel" id="mobWordPanel">
+  <div class="mob-word-tab" style="position:relative;border-bottom:1px solid var(--border);border-top:none" onclick="toggleMobWordList()">
+    <span>WORD LIST &nbsp;<span id="mobWordProgress2">0 / 0</span></span>
+    <span class="mob-word-tab-arrow tab-open">&#9650;</span>
+  </div>
+  <div class="mob-word-list-wrap" id="mobWordList"></div>
+</div>
 <div class="modal-overlay" id="reclistModal">
   <div class="modal">
     <h2>// LOAD RECLIST //</h2>
@@ -378,10 +546,13 @@ async function initAlwaysOnMic() {
   if (alwaysOnSource) return; // already init'd
   try {
     const ctx = getAudioCtx();
-    if (!mediaStream) mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    const constraints = { audio: selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true, video: false };
+    if (!mediaStream) mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
     alwaysOnSource = ctx.createMediaStreamSource(mediaStream);
     analyserNode = ctx.createAnalyser(); analyserNode.fftSize = 2048;
     alwaysOnSource.connect(analyserNode);
+    // populate mic list once we have permission
+    populateMicList();
     // start live waveform + pitch if main UI is up
     if (words.length) startWaveAndPitch();
   } catch(e) { console.warn('mic init failed:', e.message); }
@@ -391,7 +562,10 @@ async function initAlwaysOnMic() {
 function toggleRomaji() {
   showRomaji = !showRomaji;
   const btn = document.getElementById('romajiToggleBtn');
-  if (btn) btn.textContent = `Show Romaji: ${showRomaji ? 'ON' : 'OFF'}`;
+  if (btn) {
+    btn.textContent = `Show Romaji: ${showRomaji ? 'ON' : 'OFF'}`;
+    btn.className = showRomaji ? 'btn active-toggle' : 'btn';
+  }
   renderWordList(); renderMain();
 }
 
@@ -414,12 +588,14 @@ function onOffsetChange() {
 function toggleTrimStart() {
   trimStart = !trimStart;
   const btn = document.getElementById('trimStartBtn');
-  if (btn) { btn.style.borderColor = trimStart ? 'var(--accent)' : 'var(--muted)'; btn.style.color = trimStart ? 'var(--accent)' : 'var(--muted)'; btn.style.opacity = trimStart ? '1' : '0.4'; }
+  const btnM = document.getElementById('trimStartBtnMob');
+  [btn, btnM].forEach(b => { if (!b) return; b.style.borderColor = trimStart ? 'var(--accent)' : 'var(--muted)'; b.style.color = trimStart ? 'var(--accent)' : 'var(--muted)'; b.style.opacity = trimStart ? '1' : '0.4'; });
 }
 function toggleTrimEnd() {
   trimEnd = !trimEnd;
   const btn = document.getElementById('trimEndBtn');
-  if (btn) { btn.style.borderColor = trimEnd ? 'var(--accent)' : 'var(--muted)'; btn.style.color = trimEnd ? 'var(--accent)' : 'var(--muted)'; btn.style.opacity = trimEnd ? '1' : '0.4'; }
+  const btnM = document.getElementById('trimEndBtnMob');
+  [btn, btnM].forEach(b => { if (!b) return; b.style.borderColor = trimEnd ? 'var(--accent)' : 'var(--muted)'; b.style.color = trimEnd ? 'var(--accent)' : 'var(--muted)'; b.style.opacity = trimEnd ? '1' : '0.4'; });
 }
 
 function onSilenceChange() {
@@ -508,8 +684,8 @@ function renderWordList() {
     const displayWord = showRomaji ? `${dn} <span style="font-size:0.75em;opacity:0.6">(${toRomaji(dn)})</span>${seq}` : `${dn}${seq}`;
     return `<div class="word-item ${active?'active':''} ${done?'done':''}" onclick="selectWord(${i})"><span>${displayWord}</span><span class="word-status">${done?'REC':''}</span></div>`;
   }).join('');
-  // scroll active item into view
   setTimeout(() => { const a = el.querySelector('.active'); if (a) a.scrollIntoView({ block: 'nearest' }); }, 0);
+  if (mobWordOpen) renderMobWordList();
 }
 
 // ---- MAIN UI ----
@@ -862,14 +1038,36 @@ document.addEventListener('keyup', e => {
   if (e.key.toLowerCase() === recordKey) { recordKeyDown = false; if (isRecording) stopRecording(); }
 });
 
-// ---- FOLDER ----
-async function chooseSaveFolder() {
-  if (!('showDirectoryPicker' in window)) { alert('folder picker not supported here — export will zip instead.'); return; }
+// ---- MIC SELECTION ----
+let selectedDeviceId = '';
+
+async function populateMicList() {
   try {
-    saveFolderHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-    document.getElementById('statusFolder').textContent = saveFolderHandle.name;
-    document.getElementById('saveFolderBtn').textContent = '✓ ' + saveFolderHandle.name;
-  } catch(e) {}
+    // need permission first so labels show up
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const mics = devices.filter(d => d.kind === 'audioinput');
+    const sel = document.getElementById('micSelect');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">default mic</option>';
+    mics.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      opt.textContent = d.label || `mic ${d.deviceId.slice(0,6)}`;
+      if (d.deviceId === selectedDeviceId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  } catch(e) { console.warn('mic enum failed:', e.message); }
+}
+
+async function onMicChange() {
+  const sel = document.getElementById('micSelect');
+  selectedDeviceId = sel ? sel.value : '';
+  // tear down existing stream so next initAlwaysOnMic picks new device
+  if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+  if (alwaysOnSource) { try { alwaysOnSource.disconnect(); } catch(e) {} alwaysOnSource = null; }
+  cancelAnimationFrame(waveAnimId); cancelAnimationFrame(pitchAnimId);
+  await initAlwaysOnMic();
 }
 
 // ---- FRQ GENERATION ----
@@ -1027,9 +1225,111 @@ function clearAll() {
   recordingBlobs = {}; decodedBuffers = {}; stopPlayback(); renderWordList(); renderMain(); updateStatus();
 }
 
-function updateStatus() { document.getElementById('statusTotal').textContent = words.length; document.getElementById('statusDone').textContent = Object.keys(recordingBlobs).length; }
+function updateStatus() {
+  document.getElementById('statusTotal').textContent = words.length;
+  document.getElementById('statusDone').textContent = Object.keys(recordingBlobs).length;
+  // update mobile word tab progress
+  const prog = `${Object.keys(recordingBlobs).length} / ${words.length}`;
+  const p1 = document.getElementById('mobWordProgress'); if (p1) p1.textContent = prog;
+  const p2 = document.getElementById('mobWordProgress2'); if (p2) p2.textContent = prog;
+  renderMobWordList();
+}
 function openModal(id) { document.getElementById(id).classList.add('show'); }
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// ---- MOBILE SETTINGS DRAWER ----
+function openMobSettings() { document.getElementById('mobSettingsDrawer').classList.add('open'); }
+function closeMobSettings() { document.getElementById('mobSettingsDrawer').classList.remove('open'); }
+
+// ---- MOBILE WORD LIST ----
+let mobWordOpen = false;
+function toggleMobWordList() {
+  mobWordOpen = !mobWordOpen;
+  const panel = document.getElementById('mobWordPanel');
+  const tab = document.getElementById('mobWordTab');
+  if (panel) panel.classList.toggle('open', mobWordOpen);
+  if (tab) tab.classList.toggle('tab-open', mobWordOpen);
+  if (mobWordOpen) renderMobWordList();
+}
+
+function renderMobWordList() {
+  const el = document.getElementById('mobWordList'); if (!el) return;
+  if (!words.length) { el.innerHTML = '<div style="padding:12px;font-family:\'Share Tech Mono\',monospace;font-size:0.75rem;color:var(--muted);text-align:center">no reclist loaded</div>'; return; }
+  el.innerHTML = words.map((w, i) => {
+    const active = i === currentIdx, done = !!recordingBlobs[w];
+    const dn = displayName(w);
+    return `<div class="word-item ${active?'active':''} ${done?'done':''}" onclick="selectWord(${i});toggleMobWordList()"><span>${dn}</span><span class="word-status">${done?'REC':''}</span></div>`;
+  }).join('');
+  setTimeout(() => { const a = el.querySelector('.active'); if (a) a.scrollIntoView({ block: 'nearest' }); }, 0);
+}
+
+// ---- MOBILE MIRROR CONTROLS ----
+// these keep the mob drawer controls in sync with the desktop ones
+function onNoteSelectMob() {
+  const val = parseFloat(document.getElementById('noteSelectMob').value);
+  const ds = document.getElementById('toneSlider'); if (ds) ds.value = val;
+  const dm = document.getElementById('toneSliderMob'); if (dm) dm.value = val;
+  targetFreq = val;
+  document.getElementById('toneVal').textContent = val.toFixed(0) + ' Hz';
+  document.getElementById('toneValMob').textContent = val.toFixed(0) + ' Hz';
+  document.getElementById('statusTone').textContent = val.toFixed(0) + ' Hz';
+  // sync desktop note select
+  const dns = document.getElementById('noteSelect'); if (dns) dns.value = val;
+  updatePitchTargetLine();
+}
+function onToneChangeMob() {
+  const val = parseFloat(document.getElementById('toneSliderMob').value);
+  const ds = document.getElementById('toneSlider'); if (ds) ds.value = val;
+  targetFreq = val;
+  document.getElementById('toneVal').textContent = val.toFixed(0) + ' Hz';
+  document.getElementById('toneValMob').textContent = val.toFixed(0) + ' Hz';
+  document.getElementById('statusTone').textContent = val.toFixed(0) + ' Hz';
+  updatePitchTargetLine();
+}
+function onOffsetChangeMob() {
+  recOffset = parseInt(document.getElementById('recOffsetSliderMob').value);
+  const ds = document.getElementById('recOffsetSlider'); if (ds) ds.value = recOffset;
+  const lbl = (recOffset > 0 ? '+' : '') + recOffset + ' ms';
+  const v1 = document.getElementById('recOffsetVal'); if (v1) v1.textContent = lbl;
+  const v2 = document.getElementById('recOffsetValMob'); if (v2) v2.textContent = lbl;
+}
+function onSilenceChangeMob() {
+  silenceThreshold = parseFloat(document.getElementById('silenceSliderMob').value);
+  const ds = document.getElementById('silenceSlider'); if (ds) ds.value = silenceThreshold;
+  const txt = silenceThreshold === 0 ? 'off' : silenceThreshold.toFixed(3);
+  const v1 = document.getElementById('silenceVal'); if (v1) v1.textContent = txt;
+  const v2 = document.getElementById('silenceValMob'); if (v2) v2.textContent = txt;
+}
+function onMicChangeMob() {
+  const sel = document.getElementById('micSelectMob');
+  selectedDeviceId = sel ? sel.value : '';
+  const ds = document.getElementById('micSelect'); if (ds) ds.value = selectedDeviceId;
+  onMicChange();
+}
+
+// patch toggleRomaji and toggleAutoAdvance to also update mob mirror buttons
+const _origToggleRomaji = toggleRomaji;
+toggleRomaji = function() {
+  _origToggleRomaji();
+  const b = document.getElementById('romajiToggleBtnMob');
+  if (b) { b.textContent = `Show Romaji: ${showRomaji?'ON':'OFF'}`; b.className = showRomaji ? 'btn active-toggle' : 'btn'; }
+};
+const _origToggleAutoAdvance = toggleAutoAdvance;
+toggleAutoAdvance = function() {
+  _origToggleAutoAdvance();
+  const b = document.getElementById('autoAdvanceBtnMob');
+  if (b) { b.textContent = `Auto-advance: ${autoAdvance?'ON':'OFF'}`; b.className = autoAdvance ? 'btn active-toggle' : 'btn'; }
+};
+
+// patch populateMicList to also fill mob select
+const _origPopulateMicList = populateMicList;
+populateMicList = async function() {
+  await _origPopulateMicList();
+  // mirror to mob select
+  const src = document.getElementById('micSelect');
+  const dst = document.getElementById('micSelectMob');
+  if (src && dst) { dst.innerHTML = src.innerHTML; dst.value = selectedDeviceId; }
+};
 
 // ---- WAV ENCODE ----
 function audioBufferToWavBlob(buffer) {
