@@ -1461,6 +1461,83 @@ async function exportAll() {
   openModal('exportModal');
 }
 
+function analyzeAudioForOto(buffer) {
+  const data = buffer.getChannelData(0);
+  const sr = buffer.sampleRate;
+  const totalMs = (data.length / sr) * 1000;
+
+  // ---- 1. Detect start of sound (first significant amplitude) ----
+  const startThreshold = 0.015;
+  let startSample = 0;
+  for (let i = 0; i < data.length; i++) {
+    if (Math.abs(data[i]) >= startThreshold) { startSample = i; break; }
+  }
+
+  // ---- 2. Detect end of sound (last significant amplitude) ----
+  const endThreshold = 0.01;
+  let endSample = data.length - 1;
+  for (let i = data.length - 1; i > startSample; i--) {
+    if (Math.abs(data[i]) >= endThreshold) { endSample = i; break; }
+  }
+
+  const startMs = (startSample / sr) * 1000;
+  const endMs   = (endSample   / sr) * 1000;
+  const activeMs = endMs - startMs;
+
+  // ---- 3. Detect consonant-vowel boundary using short-term energy ----
+  // Window of ~10ms, stride ~5ms. Find where energy stabilises after the
+  // initial spike — that's roughly where the vowel begins.
+  const winSamples = Math.round(sr * 0.010);
+  const stepSamples = Math.round(sr * 0.005);
+  const energies = [];
+  for (let i = startSample; i < endSample - winSamples; i += stepSamples) {
+    let e = 0;
+    for (let j = i; j < i + winSamples; j++) e += data[j] * data[j];
+    energies.push({ ms: ((i + winSamples / 2) / sr) * 1000, e: e / winSamples });
+  }
+
+  // Find peak energy
+  let peakE = 0;
+  for (const pt of energies) if (pt.e > peakE) peakE = pt.e;
+
+  // Vowel boundary = first frame after start where energy > 40% of peak
+  // and we've moved at least a few ms past the initial transient
+  let vowelStartMs = startMs + 80; // default fallback
+  const vowelThresh = peakE * 0.40;
+  let passedTransient = false;
+  let transientEndMs = startMs;
+
+  // Find first local energy peak (end of transient/consonant burst)
+  for (let i = 1; i < energies.length - 1; i++) {
+    if (energies[i].e >= energies[i - 1].e && energies[i].e >= energies[i + 1].e &&
+        energies[i].e > peakE * 0.1) {
+      transientEndMs = energies[i].ms;
+      break;
+    }
+  }
+
+  // Vowel starts after transient settles and energy is sustained
+  for (const pt of energies) {
+    if (pt.ms > transientEndMs + 20 && pt.e > vowelThresh && !passedTransient) {
+      vowelStartMs = pt.ms;
+      passedTransient = true;
+      break;
+    }
+  }
+
+  // ---- 4. Calculate oto values ----
+  const consonantMs = Math.max(30, Math.min(200, Math.round(vowelStartMs - startMs)));
+  const cutoffMs    = Math.max(50, Math.round(totalMs - endMs));
+
+  return {
+    offset:    Math.round(startMs),
+    consonant: consonantMs,
+    cutoff:    -cutoffMs,
+    preutter:  consonantMs,
+    overlap:   Math.round(consonantMs * 0.5)
+  };
+}
+
 async function runExport() {
   const vbName = (document.getElementById('vbNameInput')?.value.trim() || 'MyVoicebank').replace(/[\\/:*?"<>|]/g, '_');
 
@@ -1499,12 +1576,8 @@ async function runExport() {
       audioBuf = await ctx.decodeAudioData(ab.slice(0));
       decodedBuffers[word] = audioBuf;
     }
-    const durMs = (audioBuf.length / audioBuf.sampleRate) * 1000;
-    const consonant = Math.round(durMs * 0.30);
-    const cutoff    = -Math.round(durMs * 0.20);
-    const preutter  = Math.round(durMs * 0.20);
-    const overlap   = Math.round(durMs * 0.10);
-    otoLines.push(`${fname}.wav=${alias},0,${consonant},${cutoff},${preutter},${overlap}`);
+    const oto = analyzeAudioForOto(audioBuf);
+    otoLines.push(`${fname}.wav=${alias},${oto.offset},${oto.consonant},${oto.cutoff},${oto.preutter},${oto.overlap}`);
 
     // .frq
     try {
@@ -1528,8 +1601,14 @@ async function runExport() {
   document.getElementById('exportProgressMsg').style.display = 'none';
   document.getElementById('exportMsg').textContent = `${entries.length} wavs + frq files + oto.ini + character files ready.`;
 
-  // encodeFileName: identity fn preserves UTF-8 filenames (fixes #U3042 etc)
-  const content = await zip.generateAsync({ type: 'blob', encodeFileName: s => s });
+  // encodeFileName: encode as UTF-8 bytes so JSZip sets the UTF-8 language
+  // encoding flag (bit 11) in every local file header. Without this flag,
+  // apps like OpenUtau fall back to CP437/Latin and Japanese chars get mangled.
+  const utf8Enc = new TextEncoder();
+  const content = await zip.generateAsync({
+    type: 'blob',
+    encodeFileName: s => utf8Enc.encode(s)
+  });
   const url = URL.createObjectURL(content);
   const dlBtn = document.getElementById('downloadZipBtn');
   dlBtn.style.display = '';
