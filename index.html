@@ -424,7 +424,9 @@
           <option value="392.00">G4 - 392 Hz</option><option value="440.00">A4 - 440 Hz</option>
           <option value="523.25">C5 - 523 Hz</option>
         </select>
-        <button class="preview-btn" id="previewBtn" onclick="togglePreviewTone()">&#9834; PREVIEW</button>
+        <button class="preview-btn" id="previewBtn"
+          onmousedown="startPreviewTone()" onmouseup="stopPreviewTone()" onmouseleave="stopPreviewTone()"
+          ontouchstart="startPreviewTone()" ontouchend="stopPreviewTone()">&#9834; PREVIEW</button>
       </div>
     </div>
   </div>
@@ -487,7 +489,9 @@
             <option value="392.00">G4 - 392 Hz</option><option value="440.00">A4 - 440 Hz</option>
             <option value="523.25">C5 - 523 Hz</option>
           </select>
-          <button class="preview-btn" onclick="togglePreviewTone()">&#9834;</button>
+          <button class="preview-btn"
+            onmousedown="startPreviewTone()" onmouseup="stopPreviewTone()" onmouseleave="stopPreviewTone()"
+            ontouchstart="startPreviewTone()" ontouchend="stopPreviewTone()">&#9834;</button>
         </div>
         <input type="range" id="toneSliderMob" min="80" max="800" value="220" oninput="onToneChangeMob()" style="width:100%">
         <div style="text-align:center;font-family:'Share Tech Mono',monospace;font-size:0.8rem;color:var(--accent);margin-top:4px" id="toneValMob">220 Hz</div>
@@ -933,14 +937,24 @@ function onNoteSelect() {
   const selMob = document.getElementById('noteSelectMob'); if (selMob) selMob.value = val;
   updatePitchTargetLine();
 }
-function togglePreviewTone() {
+function startPreviewTone() {
+  if (previewOscillator) return; // already playing
   const ctx = getAudioCtx(), btn = document.getElementById('previewBtn');
-  if (previewOscillator) { previewOscillator.stop(); previewOscillator = null; btn.classList.remove('playing'); btn.textContent = '♪ PREVIEW'; return; }
   previewOscillator = ctx.createOscillator();
-  const g = ctx.createGain(); previewOscillator.frequency.value = targetFreq; previewOscillator.type = 'sine'; g.gain.value = 0.2;
-  previewOscillator.connect(g); g.connect(ctx.destination); previewOscillator.start();
-  btn.classList.add('playing'); btn.textContent = '■ STOP';
-  setTimeout(() => { if (previewOscillator) { previewOscillator.stop(); previewOscillator = null; btn.classList.remove('playing'); btn.textContent = '♪ PREVIEW'; } }, 2000);
+  const g = ctx.createGain();
+  previewOscillator.frequency.value = targetFreq;
+  previewOscillator.type = 'sine';
+  g.gain.value = 0.2;
+  previewOscillator.connect(g); g.connect(ctx.destination);
+  previewOscillator.start();
+  if (btn) { btn.classList.add('playing'); btn.textContent = '■ HOLD'; }
+}
+function stopPreviewTone() {
+  if (!previewOscillator) return;
+  try { previewOscillator.stop(); } catch(e) {}
+  previewOscillator = null;
+  const btn = document.getElementById('previewBtn');
+  if (btn) { btn.classList.remove('playing'); btn.textContent = '♪ PREVIEW'; }
 }
 
 // ---- RECLIST ----
