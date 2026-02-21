@@ -1500,7 +1500,17 @@ populateMicList = async function() {
   if (src && dst) { dst.innerHTML = src.innerHTML; dst.value = selectedDeviceId; }
 };
 
-// ---- WAV ENCODE ----
+// ---- INIT ----
+window.addEventListener('DOMContentLoaded', () => {
+  const slider = document.getElementById('toneSlider');
+  if (slider) {
+    targetFreq = parseFloat(slider.value);
+    document.getElementById('toneVal').textContent = targetFreq.toFixed(0) + ' Hz';
+    document.getElementById('statusTone').textContent = targetFreq.toFixed(0) + ' Hz';
+    snapNoteSelect(targetFreq);
+    updatePitchTargetLine();
+  }
+});
 function audioBufferToWavBlob(buffer) {
   const nc=buffer.numberOfChannels,sr=buffer.sampleRate,dl=buffer.length*nc*2;
   const ab=new ArrayBuffer(44+dl),v=new DataView(ab);
