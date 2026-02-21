@@ -55,22 +55,52 @@
   .btn.danger { border-color: var(--accent2); color: var(--accent2); background: rgba(255,68,102,0.06); }
   .btn + .btn { margin-top: 6px; }
 
-  .word-list { flex: 1; overflow-y: auto; padding: 8px; min-height: 0; }
+  .word-list { flex: 1; overflow-y: auto; padding: 4px 8px; min-height: 0; }
   .word-list::-webkit-scrollbar { width: 4px; }
   .word-list::-webkit-scrollbar-track { background: var(--bg); }
   .word-list::-webkit-scrollbar-thumb { background: var(--border); }
 
-  .word-item { padding: 8px 12px; cursor: pointer; border-left: 2px solid transparent; border-radius: 2px; transition: all 0.1s; display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 1rem; margin-bottom: 2px; font-family: 'Rajdhani', 'Noto Sans JP', sans-serif; }
-  .word-item:hover { background: var(--bg3); border-left-color: var(--muted); }
-  .word-item.active { background: rgba(0,255,204,0.08); border-left-color: var(--accent); color: var(--accent); }
-  .word-item.done { border-left-color: var(--good); }
-  .word-item.done .word-status { color: var(--good); }
+  .word-item-wrap {
+    display: flex; flex-direction: column;
+    border-left: 2px solid transparent;
+    border-radius: 2px;
+    margin-bottom: 0;
+    cursor: pointer;
+    transition: border-color 0.1s, background 0.1s;
+    border-bottom: 1px solid rgba(0,255,204,0.07);
+  }
+  .word-item-wrap:last-child { border-bottom: none; }
+  .word-item-wrap:hover { background: var(--bg3); border-left-color: var(--muted); }
+  .word-item-wrap.active { background: rgba(0,255,204,0.08); border-left-color: var(--accent); }
+  .word-item-wrap.done { border-left-color: var(--good); }
+  .word-item-wrap.active.done { border-left-color: var(--accent); }
+
+  .word-item {
+    padding: 8px 12px; cursor: pointer;
+    border-left: none !important; border-radius: 0;
+    transition: none; display: flex; align-items: center; gap: 10px;
+    font-weight: 600; font-size: 1rem;
+    font-family: 'Rajdhani', 'Noto Sans JP', sans-serif;
+    background: transparent !important;
+  }
+  .word-item-wrap.active .word-item { color: var(--accent); }
+  .word-item-wrap.done .word-status { color: var(--good); }
   .word-item .word-status { font-size: 0.65rem; margin-left: auto; opacity: 0.7; font-family: 'Share Tech Mono', monospace; }
+
+  .word-mini-wave {
+    width: 100%; height: 16px; display: block;
+    opacity: 0; transition: opacity 0.3s;
+    border-radius: 0 0 2px 2px;
+    margin-top: 0;
+  }
+  .word-item-wrap.done .word-mini-wave { opacity: 1; }
+
   /* right sidebar — flip accent border to right side */
-  .right-sidebar .word-item { border-left: none; border-right: 2px solid transparent; }
-  .right-sidebar .word-item:hover { border-right-color: var(--muted); }
-  .right-sidebar .word-item.active { border-right-color: var(--accent); }
-  .right-sidebar .word-item.done { border-right-color: var(--good); }
+  .right-sidebar .word-item-wrap { border-left: none; border-right: 2px solid transparent; }
+  .right-sidebar .word-item-wrap:hover { border-right-color: var(--muted); }
+  .right-sidebar .word-item-wrap.active { border-right-color: var(--accent); }
+  .right-sidebar .word-item-wrap.done { border-right-color: var(--good); }
+  .right-sidebar .word-item-wrap.active.done { border-right-color: var(--accent); }
 
   .main-top { padding: 20px 30px; border-bottom: 1px solid var(--border); background: var(--bg2); display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
   .tone-control { display: flex; flex-direction: column; gap: 6px; }
@@ -120,7 +150,7 @@
   .pitch-offset.bad { color: var(--bad); }
 
   .playback-row { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 700px; }
-  #playbackCanvas { flex: 1; height: 60px; border: 1px solid var(--border); background: var(--bg3); border-radius: 2px; cursor: pointer; }
+  #playbackCanvas { flex: 1; height: 60px; border: 1px solid var(--border); background: var(--bg3); border-radius: 2px; cursor: default; user-select: none; }
 
   .play-btn { padding: 7px 16px; border: 1px solid var(--accent); background: rgba(0,255,204,0.08); color: var(--accent); font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; cursor: pointer; border-radius: 2px; transition: all 0.15s; white-space: nowrap; flex-shrink: 0; }
   .play-btn:hover { background: rgba(0,255,204,0.18); }
@@ -305,7 +335,7 @@
 
     /* layout */
     .app { grid-template-columns: 1fr; grid-template-rows: 1fr; height: calc(100vh - 64px); }
-    .main-content { padding: 16px; gap: 14px; padding-bottom: 60px; }
+    .main-content { padding: 16px; gap: 14px; padding-bottom: 80px; }
 
     /* header */
     h1 { font-size: 1.4rem; }
@@ -340,6 +370,11 @@
     <select id="micSelect" onchange="onMicChange()">
       <option value="">default mic</option>
     </select>
+  </div>
+  <!-- hover-play toggle -->
+  <div class="header-mic" style="margin-left:0">
+    <label>HOVER PLAY</label>
+    <button id="hoverPlayBtn" onclick="toggleHoverPlay()" style="padding:5px 12px;border:1px solid var(--border);background:var(--bg3);color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.75rem;cursor:pointer;border-radius:2px;transition:all 0.15s;white-space:nowrap">OFF</button>
   </div>
   <!-- mobile: settings icon -->
   <button class="mob-settings-btn" onclick="openMobSettings()" title="Settings">&#9881;</button>
@@ -473,6 +508,7 @@
       <h3>Display</h3>
       <button class="btn" id="romajiToggleBtnMob" onclick="toggleRomaji()">Show Romaji: OFF</button>
       <button class="btn" id="autoAdvanceBtnMob" onclick="toggleAutoAdvance()" style="margin-top:6px">Auto-advance: ON</button>
+      <button class="btn" id="hoverPlayBtnMob" onclick="toggleHoverPlay()" style="margin-top:6px">Hover Play: OFF</button>
     </div>
     <div class="sidebar-section">
       <h3>Target Tone</h3>
@@ -585,6 +621,13 @@ let pendingRecordTimeout = null;
 let showRomaji = false;
 let autoAdvance = true;
 let recOffset = 0;
+
+// ---- TRIM STATE ----
+// originalBuffers stores the full uncut buffer before any trim edits
+// trimRegions[word] = { startSamples, endSamples } — samples removed from each side
+let originalBuffers = {};
+let trimRegions = {}; // { startSamples: N, endSamples: N }
+let manualTrimWords = new Set(); // words where user dragged a handle — slider won't override these
 let silenceThreshold = 0;
 let trimStart = true;
 let trimEnd = false;
@@ -840,6 +883,49 @@ function toggleAutoAdvance() {
   }
 }
 
+// ---- HOVER PLAY ----
+let hoverPlay = false;
+let hoverPlayTimeout = null;
+let hoverPlaySource = null;
+
+function toggleHoverPlay() {
+  hoverPlay = !hoverPlay;
+  const btn = document.getElementById('hoverPlayBtn');
+  const btnMob = document.getElementById('hoverPlayBtnMob');
+  const label = `Hover Play: ${hoverPlay ? 'ON' : 'OFF'}`;
+  if (btn) { btn.textContent = label; btn.style.borderColor = hoverPlay ? 'var(--accent)' : 'var(--border)'; btn.style.color = hoverPlay ? 'var(--accent)' : 'var(--muted)'; btn.style.background = hoverPlay ? 'rgba(0,255,204,0.08)' : 'var(--bg3)'; }
+  if (btnMob) { btnMob.textContent = label; btnMob.className = hoverPlay ? 'btn active-toggle' : 'btn'; }
+}
+
+function onWordHover(i) {
+  if (!hoverPlay) return;
+  const w = words[i];
+  if (!decodedBuffers[w]) return;
+  // short delay so fast scrolling doesn't spam playback
+  hoverPlayTimeout = setTimeout(() => {
+    stopHoverPlay();
+    const ctx = getAudioCtx();
+    hoverPlaySource = ctx.createBufferSource();
+    hoverPlaySource.buffer = decodedBuffers[w];
+    hoverPlaySource.connect(ctx.destination);
+    hoverPlaySource.start();
+    hoverPlaySource.onended = () => { hoverPlaySource = null; };
+  }, 120);
+}
+
+function onWordHoverEnd(i) {
+  clearTimeout(hoverPlayTimeout);
+  hoverPlayTimeout = null;
+  stopHoverPlay();
+}
+
+function stopHoverPlay() {
+  if (hoverPlaySource) {
+    try { hoverPlaySource.stop(); } catch(e) {}
+    hoverPlaySource = null;
+  }
+}
+
 // ---- OFFSET ----
 function onOffsetChange() {
   recOffset = parseInt(document.getElementById('recOffsetSlider').value);
@@ -852,25 +938,64 @@ function toggleTrimStart() {
   const btn = document.getElementById('trimStartBtn');
   const btnM = document.getElementById('trimStartBtnMob');
   [btn, btnM].forEach(b => { if (!b) return; b.style.borderColor = trimStart ? 'var(--accent)' : 'var(--muted)'; b.style.color = trimStart ? 'var(--accent)' : 'var(--muted)'; b.style.opacity = trimStart ? '1' : '0.4'; });
+  _applySilenceTrimToCurrentWord();
 }
 function toggleTrimEnd() {
   trimEnd = !trimEnd;
   const btn = document.getElementById('trimEndBtn');
   const btnM = document.getElementById('trimEndBtnMob');
   [btn, btnM].forEach(b => { if (!b) return; b.style.borderColor = trimEnd ? 'var(--accent)' : 'var(--muted)'; b.style.color = trimEnd ? 'var(--accent)' : 'var(--muted)'; b.style.opacity = trimEnd ? '1' : '0.4'; });
+  _applySilenceTrimToCurrentWord();
 }
 
 function onSilenceChange() {
   silenceThreshold = parseFloat(document.getElementById('silenceSlider').value);
   const el = document.getElementById('silenceVal');
   if (el) el.textContent = silenceThreshold === 0 ? 'off' : silenceThreshold.toFixed(3);
+  _applyGlobalSilenceTrim();
+}
+
+// Apply silence trim globally to all recorded words that aren't manually locked.
+// Also refreshes the canvas if the current word is affected.
+function _applyGlobalSilenceTrim() {
+  let currentWordAffected = false;
+  const w = words[currentIdx];
+  for (const word of Object.keys(originalBuffers)) {
+    if (manualTrimWords.has(word)) continue; // user set this manually — leave it alone
+    trimRegions[word] = detectSilenceTrimRegion(originalBuffers[word], silenceThreshold);
+    _applyTrim(word);
+    if (word === w) currentWordAffected = true;
+  }
+  if (currentWordAffected) {
+    _waveformCache = null;
+    const canvas = (_livePlaybackCanvas && _livePlaybackCanvas.isConnected)
+      ? _livePlaybackCanvas
+      : document.getElementById('playbackCanvas');
+    if (canvas) _repaint(canvas);
+  }
+}
+
+// Single-word re-trim used by S/E toggle buttons (respects manual lock).
+function _applySilenceTrimToCurrentWord() {
+  const w = words[currentIdx]; if (!w) return;
+  const src = originalBuffers[w]; if (!src) return;
+  // S/E toggle always recomputes — clear manual lock for this word
+  manualTrimWords.delete(w);
+  trimRegions[w] = detectSilenceTrimRegion(src, silenceThreshold);
+  _applyTrim(w);
+  _waveformCache = null;
+  const canvas = (_livePlaybackCanvas && _livePlaybackCanvas.isConnected)
+    ? _livePlaybackCanvas
+    : document.getElementById('playbackCanvas');
+  if (!canvas) return;
+  _repaint(canvas);
 }
 
 // Trim samples below threshold from both ends of an AudioBuffer.
 // Uses a small look-ahead window so a single loud spike doesn't prematurely stop trimming.
-function trimSilence(buffer, threshold) {
-  if (threshold === 0 || (!trimStart && !trimEnd)) return buffer;
-  const ctx = getAudioCtx();
+// Returns { startSamples, endSamples } — samples to remove from each side.
+// Does NOT slice the buffer. Zero means no trim on that side.
+function detectSilenceTrimRegion(buffer, threshold) {
   const sr = buffer.sampleRate, len = buffer.length, nc = buffer.numberOfChannels;
   const WINDOW = Math.floor(sr * 0.005);
 
@@ -882,7 +1007,7 @@ function trimSilence(buffer, threshold) {
   for (let i = 0; i < len; i++) mono[i] /= nc;
 
   let start = 0;
-  if (trimStart) {
+  if (trimStart && threshold > 0) {
     for (let i = 0; i < len - WINDOW; i++) {
       let loud = false;
       for (let j = i; j < i + WINDOW; j++) { if (mono[j] > threshold) { loud = true; break; } }
@@ -891,7 +1016,7 @@ function trimSilence(buffer, threshold) {
   }
 
   let end = len;
-  if (trimEnd) {
+  if (trimEnd && threshold > 0) {
     for (let i = len - 1; i >= WINDOW; i--) {
       let loud = false;
       for (let j = i; j > i - WINDOW; j--) { if (mono[j] > threshold) { loud = true; break; } }
@@ -899,11 +1024,7 @@ function trimSilence(buffer, threshold) {
     }
   }
 
-  if (end <= start) return buffer;
-  const trimmed = ctx.createBuffer(nc, end - start, sr);
-  for (let ch = 0; ch < nc; ch++)
-    trimmed.copyToChannel(buffer.getChannelData(ch).slice(start, end), ch);
-  return trimmed;
+  return { startSamples: start, endSamples: len - end };
 }
 
 // ---- DOWNLOAD CURRENT ----
@@ -944,14 +1065,72 @@ function renderWordList() {
     const dn = displayName(w);
     const seq = isSequence(w) ? `<span style="font-size:0.55rem;opacity:0.5;font-family:'Share Tech Mono',monospace;margin-left:4px;border:1px solid var(--muted);padding:1px 4px;border-radius:2px">SEQ</span>` : '';
     const displayWord = showRomaji ? `${dn} <span style="font-size:0.75em;opacity:0.6">(${toRomaji(dn)})</span>${seq}` : `${dn}${seq}`;
-    return `<div class="word-item ${active?'active':''} ${done?'done':''}" onclick="selectWord(${i})"><span>${displayWord}</span><span class="word-status">${done?'REC':''}</span></div>`;
+    const wave = done ? `<canvas class="word-mini-wave" data-word="${encodeURIComponent(w)}" height="16"></canvas>` : '';
+    const wrapClass = `word-item-wrap${active?' active':''}${done?' done':''}`;
+    return `<div class="${wrapClass}" onclick="selectWord(${i})" onmouseenter="onWordHover(${i})" onmouseleave="onWordHoverEnd(${i})" data-idx="${i}"><div class="word-item"><span>${displayWord}</span><span class="word-status">${done?'REC':''}</span></div>${wave}</div>`;
   }).join('');
   setTimeout(() => { const a = el.querySelector('.active'); if (a) a.scrollIntoView({ block: 'nearest' }); }, 0);
+  requestAnimationFrame(() => el.querySelectorAll('.word-mini-wave').forEach(cv => paintMiniWave(cv)));
   if (mobWordOpen) renderMobWordList();
+}
+
+function paintMiniWave(cv) {
+  const w = decodeURIComponent(cv.dataset.word);
+  const buf = decodedBuffers[w];
+  const W = Math.round(cv.getBoundingClientRect().width) || cv.offsetWidth || 240;
+  const H = 14;
+  cv.width = W; cv.height = H;
+  const ctx2 = cv.getContext('2d');
+
+  // subtle dark background so the bar is always visible
+  ctx2.fillStyle = 'rgba(0,20,16,0.6)';
+  ctx2.fillRect(0, 0, W, H);
+
+  if (!buf) { cv.style.opacity = '0'; return; }
+
+  const data = buf.getChannelData(0);
+  const step = Math.max(1, Math.floor(data.length / W));
+
+  // build per-column RMS
+  const rms = new Float32Array(W);
+  for (let x = 0; x < W; x++) {
+    let sum = 0, count = 0;
+    const start = x * step, end = Math.min(start + step, data.length);
+    for (let j = start; j < end; j++) { sum += data[j] * data[j]; count++; }
+    rms[x] = count ? Math.sqrt(sum / count) : 0;
+  }
+
+  // normalise
+  let peak = 0;
+  for (let x = 0; x < W; x++) if (rms[x] > peak) peak = rms[x];
+  if (peak === 0) { cv.style.opacity = '1'; return; }
+
+  const midY = H / 2;
+  for (let x = 0; x < W; x++) {
+    const norm = rms[x] / peak;            // 0..1
+    const barH = Math.max(1, norm * (H - 2));
+    const alpha = 0.12 + norm * 0.88;
+
+    // green glow: dim for silence, bright accent for peaks
+    const g = Math.round(100 + norm * 155);
+    const b = Math.round(80  + norm * 124);
+    ctx2.fillStyle = `rgba(0,${g},${b},${alpha.toFixed(2)})`;
+    ctx2.fillRect(x, midY - barH / 2, 1, barH);
+
+    // extra glow layer for loud sections
+    if (norm > 0.45) {
+      const glowAlpha = ((norm - 0.45) * 0.55).toFixed(2);
+      ctx2.fillStyle = `rgba(0,255,204,${glowAlpha})`;
+      ctx2.fillRect(x, midY - barH / 2, 1, barH);
+    }
+  }
+
+  cv.style.opacity = '1';
 }
 
 // ---- MAIN UI ----
 function renderMain() {
+  _livePlaybackCanvas = null; // reset live ref; drawPlaybackWaveform will set it fresh
   if (!words.length) {
     document.getElementById('mainContent').innerHTML = `<div class="no-reclist" style="text-align:center"><div class="big">&#9900;</div>load a reclist.txt to start...<br><span style="font-size:0.75rem">hold the record key for each word</span></div>`;
     return;
@@ -984,7 +1163,7 @@ function renderMain() {
     ${done ? `<div class="playback-row">
       <button class="play-btn" id="playBtn" onclick="togglePlayback()">&#9654; LISTEN</button>
       <button class="play-btn" id="dlBtn" onclick="downloadCurrent()" style="border-color:var(--accent3);color:var(--accent3);background:rgba(255,204,0,0.06)">&#8659; DL</button>
-      <canvas id="playbackCanvas" onclick="togglePlayback()"></canvas>
+      <canvas id="playbackCanvas"></canvas>
     </div>` : ''}
     <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:center">
       <div class="record-hint">
@@ -1002,7 +1181,9 @@ function renderMain() {
       <div class="progress-text">${Object.keys(recordingBlobs).length} / ${words.length}</div>
     </div>
     <div class="keys-hint">
-      <span class="key">&#8592;</span><span class="key">&#8594;</span> navigate &nbsp;
+      <span class="key">&#8593;</span><span class="key">&#8595;</span> prev/next &nbsp;
+      <span class="key">&#8592;</span> first &nbsp;
+      <span class="key">&#8594;</span> last &nbsp;
       <span class="key">SPACE</span> listen &nbsp;
       <span class="key" style="border-color:var(--accent);color:var(--accent)">${recordKeyLabel}</span> record
       &nbsp;<span style="opacity:0.5">(click key to remap)</span>
@@ -1033,7 +1214,18 @@ function updatePitchTargetLine() {
   el.style.left = pct + '%';
 }
 
-function selectWord(i) { stopPlayback(); currentIdx = i; renderWordList(); renderMain(); }
+function selectWord(i) {
+  stopPlayback();
+  currentIdx = i;
+  // Auto-apply current silence threshold to this word if it has audio and isn't manually locked
+  const w = words[i];
+  if (originalBuffers[w] && !manualTrimWords.has(w) && silenceThreshold > 0) {
+    trimRegions[w] = detectSilenceTrimRegion(originalBuffers[w], silenceThreshold);
+    _applyTrim(w);
+  }
+  renderWordList();
+  renderMain();
+}
 
 // ---- TONE ----
 function snapNoteSelect(freq) {
@@ -1108,6 +1300,7 @@ function confirmReclist() {
     words.push(...tokens);
   }
   recordingBlobs = {}; decodedBuffers = {}; currentIdx = 0;
+  manualTrimWords.clear();
   closeModal('reclistModal');
   renderWordList(); renderMain(); updateStatus();
   // init always-on mic as soon as we have a reclist
@@ -1139,24 +1332,259 @@ function stopPlayback() {
   if (btn) { btn.textContent = '▶ LISTEN'; btn.classList.remove('playing'); }
 }
 
+// ---- TRIM EDITOR STATE ----
+// trimDrag: null | { side: 'left'|'right' }
+let trimDrag = null;
+const HANDLE_HIT = 10; // px hit radius around each handle line
+
 function drawPlaybackWaveform(buffer) {
   const canvas = document.getElementById('playbackCanvas'); if (!canvas) return;
-  canvas.width = canvas.offsetWidth || 500; canvas.height = 60;
-  const ctx2d = canvas.getContext('2d'), data = buffer.getChannelData(0);
-  const step = Math.ceil(data.length / canvas.width);
-  ctx2d.fillStyle = '#1a1a24'; ctx2d.fillRect(0, 0, canvas.width, canvas.height);
-  ctx2d.strokeStyle = '#00ffcc'; ctx2d.lineWidth = 1; ctx2d.shadowBlur = 4; ctx2d.shadowColor = '#00ffcc';
-  ctx2d.beginPath();
-  for (let i = 0; i < canvas.width; i++) {
-    let min = 1, max = -1;
-    for (let j = 0; j < step; j++) { const d = data[i*step+j]||0; if(d<min)min=d; if(d>max)max=d; }
-    ctx2d.moveTo(i, ((1+min)/2)*canvas.height);
-    ctx2d.lineTo(i, ((1+max)/2)*canvas.height);
-  }
-  ctx2d.stroke();
+  const W = canvas.offsetWidth || 500, H = 60;
+  canvas.width = W; canvas.height = H;
+  _livePlaybackCanvas = canvas; // will be updated again by _attachTrimListeners
+  _repaint(canvas);
+  _attachTrimListeners(canvas);
 }
 
-// ---- RECORDING ----
+// Cached ImageData of just the waveform (no overlay) — reused during drag
+let _waveformCache = null; // { imageData, word, W, H }
+let _livePlaybackCanvas = null; // always points to the actual canvas in the DOM (post-clone)
+
+// Full repaint: expensive waveform path + overlay. Call on init and mouse-up only.
+function _repaint(canvas) {
+  if (!canvas) return;
+  const W = canvas.width, H = canvas.height;
+  const w = words[currentIdx];
+  const fullBuf = originalBuffers[w] || decodedBuffers[w]; if (!fullBuf) return;
+  const ctx = canvas.getContext('2d');
+
+  // --- draw background + waveform ---
+  const data = fullBuf.getChannelData(0);
+  const totalSamples = data.length;
+  ctx.fillStyle = '#1a1a24';
+  ctx.fillRect(0, 0, W, H);
+  const step = Math.ceil(totalSamples / W);
+  ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 1;
+  ctx.shadowBlur = 4; ctx.shadowColor = '#00ffcc';
+  ctx.beginPath();
+  for (let i = 0; i < W; i++) {
+    let mn = 1, mx = -1;
+    for (let j = 0; j < step; j++) { const d = data[i * step + j] || 0; if (d < mn) mn = d; if (d > mx) mx = d; }
+    ctx.moveTo(i + 0.5, ((1 + mn) / 2) * H);
+    ctx.lineTo(i + 0.5, ((1 + mx) / 2) * H);
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Cache the waveform pixels so drag overlay can restore them cheaply
+  _waveformCache = { imageData: ctx.getImageData(0, 0, W, H), word: w, W, H };
+
+  // draw overlay on top
+  _repaintOverlay(canvas);
+}
+
+// Cheap overlay-only repaint: restores cached waveform pixels then draws red zones + handles.
+// Called on every mousemove during drag — no waveform loop, just fillRect + lineTo.
+function _repaintOverlay(canvas) {
+  if (!canvas) return;
+  const W = canvas.width, H = canvas.height;
+  const ctx = canvas.getContext('2d');
+  const w = words[currentIdx];
+  const fullBuf = originalBuffers[w] || decodedBuffers[w]; if (!fullBuf) return;
+  const totalSamples = fullBuf.getChannelData(0).length;
+  const region = trimRegions[w] || { startSamples: 0, endSamples: 0 };
+  const leftPx  = Math.round((region.startSamples / totalSamples) * W);
+  const rightPx = W - Math.round((region.endSamples  / totalSamples) * W);
+
+  // Restore cached waveform (avoids redrawing the expensive path)
+  if (_waveformCache && _waveformCache.word === w && _waveformCache.W === W && _waveformCache.H === H) {
+    ctx.putImageData(_waveformCache.imageData, 0, 0);
+  } else {
+    // Cache is stale — fall back to full repaint
+    _repaint(canvas); return;
+  }
+
+  // Red overlay for trimmed zones
+  if (leftPx > 0) {
+    ctx.fillStyle = 'rgba(255,40,70,0.28)';
+    ctx.fillRect(0, 0, leftPx, H);
+  }
+  if (rightPx < W) {
+    ctx.fillStyle = 'rgba(255,40,70,0.28)';
+    ctx.fillRect(rightPx, 0, W - rightPx, H);
+  }
+
+  // Handle lines — no shadowBlur here, too expensive per frame
+  const drawHandle = (x, active) => {
+    ctx.strokeStyle = active ? '#ff4060' : 'rgba(255,60,80,0.85)';
+    ctx.lineWidth = active ? 3 : 2;
+    ctx.beginPath();
+    ctx.moveTo(x + 0.5, 0);
+    ctx.lineTo(x + 0.5, H);
+    ctx.stroke();
+  };
+
+  drawHandle(leftPx,  trimDrag && trimDrag.side === 'left');
+  drawHandle(rightPx, trimDrag && trimDrag.side === 'right');
+}
+
+function _attachTrimListeners(canvas) {
+  // clone to strip stale listeners, preserve id
+  const fresh = canvas.cloneNode(false);
+  fresh.id = canvas.id;
+  canvas.parentNode.replaceChild(fresh, canvas);
+  _livePlaybackCanvas = fresh; // keep a live reference so slider can repaint the right element
+
+  // repaint onto the fresh clone (clone has same width/height attrs)
+  _repaint(fresh);
+
+  const getX = e => {
+    const r = fresh.getBoundingClientRect();
+    return (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+  };
+
+  const getCursorAndSide = ex => {
+    const w = words[currentIdx];
+    const fullBuf = originalBuffers[w] || decodedBuffers[w]; if (!fullBuf) return null;
+    const totalSamples = fullBuf.getChannelData(0).length;
+    const region = trimRegions[w] || { startSamples: 0, endSamples: 0 };
+    const W = fresh.width;
+    const lp = Math.round((region.startSamples / totalSamples) * W);
+    const rp = W - Math.round((region.endSamples  / totalSamples) * W);
+    if (Math.abs(ex - lp) <= HANDLE_HIT) return 'left';
+    if (Math.abs(ex - rp) <= HANDLE_HIT) return 'right';
+    return null;
+  };
+
+  // Single document-level mousemove — no double dispatch, rAF-throttled
+  let _dragRafPending = false;
+  let _dragLastX = 0;
+
+  const onDocMove = e => {
+    if (!trimDrag) {
+      // cursor hint only when over the canvas
+      if (e.target === fresh) {
+        fresh.style.cursor = getCursorAndSide(getX(e)) ? 'ew-resize' : 'default';
+      }
+      return;
+    }
+    e.preventDefault();
+    _dragLastX = getX(e);
+    if (_dragRafPending) return; // skip if a frame is already queued
+    _dragRafPending = true;
+    requestAnimationFrame(() => {
+      _dragRafPending = false;
+      if (!trimDrag) return;
+      const ex = _dragLastX;
+      const w = words[currentIdx];
+      const fullBuf = originalBuffers[w] || decodedBuffers[w]; if (!fullBuf) return;
+      const totalSamples = fullBuf.getChannelData(0).length;
+      const region = trimRegions[w] || { startSamples: 0, endSamples: 0 };
+      const W = fresh.width;
+      const lp = Math.round((region.startSamples / totalSamples) * W);
+      const rp = W - Math.round((region.endSamples  / totalSamples) * W);
+      if (trimDrag.side === 'left') {
+        const cx = Math.max(0, Math.min(ex, rp - 2));
+        trimRegions[w] = { ...region, startSamples: Math.round((cx / W) * totalSamples) };
+      } else {
+        const cx = Math.max(lp + 2, Math.min(ex, W));
+        trimRegions[w] = { ...region, endSamples: Math.round(((W - cx) / W) * totalSamples) };
+      }
+      _repaintOverlay(fresh);
+    });
+  };
+  document.addEventListener('mousemove', onDocMove);
+
+  fresh.addEventListener('mousedown', e => {
+    const side = getCursorAndSide(getX(e));
+    if (!side) return;
+    e.preventDefault();
+    trimDrag = { side };
+    fresh.style.cursor = 'ew-resize';
+  });
+
+  // Touch support for trim handles
+  fresh.addEventListener('touchstart', e => {
+    const side = getCursorAndSide(getX(e));
+    if (!side) return;
+    e.preventDefault();
+    trimDrag = { side };
+  }, { passive: false });
+
+  document.addEventListener('touchmove', e => {
+    if (!trimDrag) return;
+    e.preventDefault();
+    _dragLastX = getX(e);
+    if (_dragRafPending) return;
+    _dragRafPending = true;
+    requestAnimationFrame(() => {
+      _dragRafPending = false;
+      if (!trimDrag) return;
+      const ex = _dragLastX;
+      const w = words[currentIdx];
+      const fullBuf = originalBuffers[w] || decodedBuffers[w]; if (!fullBuf) return;
+      const totalSamples = fullBuf.getChannelData(0).length;
+      const region = trimRegions[w] || { startSamples: 0, endSamples: 0 };
+      const W = fresh.width;
+      const lp = Math.round((region.startSamples / totalSamples) * W);
+      const rp = W - Math.round((region.endSamples  / totalSamples) * W);
+      if (trimDrag.side === 'left') {
+        const cx = Math.max(0, Math.min(ex, rp - 2));
+        trimRegions[w] = { ...region, startSamples: Math.round((cx / W) * totalSamples) };
+      } else {
+        const cx = Math.max(lp + 2, Math.min(ex, W));
+        trimRegions[w] = { ...region, endSamples: Math.round(((W - cx) / W) * totalSamples) };
+      }
+      _repaintOverlay(fresh);
+    });
+  }, { passive: false });
+
+  const onUp = () => {
+    if (!trimDrag) return;
+    const w = words[currentIdx];
+    manualTrimWords.add(w); // user explicitly set this — lock it from global slider
+    _applyTrim(w);
+    trimDrag = null;
+    fresh.style.cursor = 'default';
+    _waveformCache = null;
+    _repaint(fresh);
+  };
+
+  fresh.addEventListener('mouseup', onUp);
+  document.addEventListener('mouseup', onUp);
+  document.addEventListener('touchend', onUp);
+  document.addEventListener('touchcancel', onUp);
+}
+
+function _applyTrim(w) {
+  const region = trimRegions[w];
+  if (!region) return;
+
+  // always work from the original full buffer so handles can restore audio
+  if (!originalBuffers[w]) originalBuffers[w] = decodedBuffers[w];
+  const src = originalBuffers[w];
+  const totalSamples = src.length;
+  const keepStart = Math.max(0, region.startSamples);
+  const keepEnd   = Math.max(keepStart + 1, totalSamples - region.endSamples);
+  const keepLen   = keepEnd - keepStart;
+
+  const ctx = getAudioCtx();
+  const trimmed = ctx.createBuffer(src.numberOfChannels, keepLen, src.sampleRate);
+  for (let ch = 0; ch < src.numberOfChannels; ch++) {
+    trimmed.copyToChannel(src.getChannelData(ch).slice(keepStart, keepEnd), ch);
+  }
+
+  decodedBuffers[w] = trimmed;
+  recordingBlobs[w] = audioBufferToWavBlob(trimmed);
+
+  // refresh mini waveform in the sidebar
+  requestAnimationFrame(() => {
+    const cvs = document.querySelectorAll(`.word-mini-wave[data-word="${encodeURIComponent(w)}"]`);
+    cvs.forEach(cv => paintMiniWave(cv));
+  });
+}
+
+
 async function startRecording() {
   if (!words.length || isRecording) return;
   stopPlayback();
@@ -1170,6 +1598,9 @@ async function startRecording() {
   const doStart = () => {
     pendingRecordTimeout = null;
     if (!isRecording) return;
+    // Clear countdown colour
+    const wordEl2 = document.getElementById('currentWordEl');
+    if (wordEl2) { wordEl2.style.color = ''; wordEl2.style.transition = ''; }
     recordedChunks = [];
     // analyserNode is always alive — just hook recorder to the existing stream
     mediaRecorder = new MediaRecorder(mediaStream);
@@ -1184,6 +1615,9 @@ async function startRecording() {
   if (recOffset > 0) {
     const ind = document.getElementById('recIndicator');
     if (ind) { ind.classList.add('active'); ind.style.opacity = '0.35'; }
+    // Show countdown on the word element
+    const wordEl = document.getElementById('currentWordEl');
+    if (wordEl) { wordEl.style.transition = 'color 0.1s'; wordEl.style.color = 'var(--accent3)'; }
     pendingRecordTimeout = setTimeout(doStart, recOffset);
   } else {
     doStart();
@@ -1198,7 +1632,17 @@ function stopRecording() {
     clearTimeout(pendingRecordTimeout);
     pendingRecordTimeout = null;
     const ind = document.getElementById('recIndicator');
-    if (ind) { ind.classList.remove('active'); ind.style.opacity = ''; }
+    if (ind) {
+      ind.classList.remove('active');
+      ind.style.opacity = '';
+      // Flash a brief "cancelled" hint
+      const wordEl = document.getElementById('currentWordEl');
+      if (wordEl) {
+        wordEl.style.transition = 'color 0.1s';
+        wordEl.style.color = 'var(--warn)';
+        setTimeout(() => { wordEl.style.color = ''; wordEl.style.transition = ''; }, 350);
+      }
+    }
     return;
   }
 
@@ -1225,16 +1669,31 @@ function processRecording() {
           decoded = trimmed;
         }
       }
-      // silence trim (both ends)
-      decoded = trimSilence(decoded, silenceThreshold);
-      decodedBuffers[w] = decoded;
-      recordingBlobs[w] = audioBufferToWavBlob(decoded);
+      // Store raw audio as the original — silence trim becomes trim region, not a destructive cut
+      originalBuffers[w] = decoded;
+      manualTrimWords.delete(w); // fresh recording resets any manual lock
+      _waveformCache = null;
+      // Compute silence trim as a region (visible in UI, user-adjustable)
+      trimRegions[w] = detectSilenceTrimRegion(decoded, silenceThreshold);
+      // Apply it to produce the working buffer + blob
+      _applyTrim(w);
+      decodedBuffers[w] = decodedBuffers[w] || decoded; // fallback if _applyTrim didn't set it
     } catch(e) { recordingBlobs[w] = blob; }
 
     renderWordList(); updateStatus();
 
     if (autoAdvance && currentIdx < words.length - 1) {
       currentIdx++;
+    } else if (Object.keys(recordingBlobs).length === words.length) {
+      // All done! Brief celebration glow on the progress bar
+      setTimeout(() => {
+        const fill = document.querySelector('.progress-fill');
+        if (fill) {
+          fill.style.transition = 'box-shadow 0.3s';
+          fill.style.boxShadow = '0 0 24px var(--accent), 0 0 48px rgba(0,255,204,0.5)';
+          setTimeout(() => { fill.style.boxShadow = ''; fill.style.transition = ''; }, 1200);
+        }
+      }, 100);
     }
     renderMain();
   };
@@ -1338,8 +1797,19 @@ document.addEventListener('keydown', e => {
     // init mic early on first ever keypress even before reclist loaded
     if (!mediaStream) initAlwaysOnMic();
   }
-  if (e.key === 'ArrowRight' && currentIdx < words.length-1) { stopPlayback(); currentIdx++; renderWordList(); renderMain(); }
-  if (e.key === 'ArrowLeft' && currentIdx > 0) { stopPlayback(); currentIdx--; renderWordList(); renderMain(); }
+  const _navTo = idx => {
+    stopPlayback(); currentIdx = idx;
+    const w = words[currentIdx];
+    if (originalBuffers[w] && !manualTrimWords.has(w) && silenceThreshold > 0) {
+      trimRegions[w] = detectSilenceTrimRegion(originalBuffers[w], silenceThreshold);
+      _applyTrim(w);
+    }
+    renderWordList(); renderMain();
+  };
+  if (e.key === 'ArrowUp'    && currentIdx > 0)               { e.preventDefault(); _navTo(currentIdx - 1); }
+  if (e.key === 'ArrowDown'  && currentIdx < words.length - 1) { e.preventDefault(); _navTo(currentIdx + 1); }
+  if (e.key === 'ArrowLeft'  && words.length)                  { e.preventDefault(); _navTo(0); }
+  if (e.key === 'ArrowRight' && words.length)                  { e.preventDefault(); _navTo(words.length - 1); }
   if (e.key === ' ') { e.preventDefault(); if (recordingBlobs[words[currentIdx]]) togglePlayback(); }
 });
 document.addEventListener('keyup', e => {
@@ -1612,7 +2082,7 @@ async function runExport() {
   const url = URL.createObjectURL(content);
   const dlBtn = document.getElementById('downloadZipBtn');
   dlBtn.style.display = '';
-  dlBtn.textContent = '&#8659; download .zip';
+  dlBtn.innerHTML = '&#8659; download .zip';
   dlBtn.onclick = () => {
     const a = document.createElement('a');
     a.href = url; a.download = vbName + '.zip'; a.click();
@@ -1622,12 +2092,21 @@ async function runExport() {
 // ---- CLEAR ----
 function clearAll() {
   if (!confirm('clear all recordings? ...you sure?')) return;
-  recordingBlobs = {}; decodedBuffers = {}; stopPlayback(); renderWordList(); renderMain(); updateStatus();
+  recordingBlobs = {}; decodedBuffers = {}; originalBuffers = {}; trimRegions = {}; manualTrimWords.clear(); stopPlayback(); renderWordList(); renderMain(); updateStatus();
 }
 
 function updateStatus() {
   document.getElementById('statusTotal').textContent = words.length;
   document.getElementById('statusDone').textContent = Object.keys(recordingBlobs).length;
+  // update document title with progress
+  const done = Object.keys(recordingBlobs).length;
+  const total = words.length;
+  if (total > 0) {
+    const pct = Math.round(done / total * 100);
+    document.title = `BONEMO [${pct}% — ${done}/${total}]`;
+  } else {
+    document.title = 'BONEMO - Voice Recording Studio';
+  }
   // update mobile word tab progress
   const prog = `${Object.keys(recordingBlobs).length} / ${words.length}`;
   const p1 = document.getElementById('mobWordProgress'); if (p1) p1.textContent = prog;
@@ -1699,6 +2178,7 @@ function onSilenceChangeMob() {
   const txt = silenceThreshold === 0 ? 'off' : silenceThreshold.toFixed(3);
   const v1 = document.getElementById('silenceVal'); if (v1) v1.textContent = txt;
   const v2 = document.getElementById('silenceValMob'); if (v2) v2.textContent = txt;
+  _applyGlobalSilenceTrim();
 }
 function onMicChangeMob() {
   const sel = document.getElementById('micSelectMob');
@@ -1719,6 +2199,13 @@ toggleAutoAdvance = function() {
   _origToggleAutoAdvance();
   const b = document.getElementById('autoAdvanceBtnMob');
   if (b) { b.textContent = `Auto-advance: ${autoAdvance?'ON':'OFF'}`; b.className = autoAdvance ? 'btn active-toggle' : 'btn'; }
+};
+const _origToggleHoverPlay = toggleHoverPlay;
+toggleHoverPlay = function() {
+  _origToggleHoverPlay();
+  // desktop button is already updated inside the original; sync mob
+  const b = document.getElementById('hoverPlayBtnMob');
+  if (b) { b.textContent = `Hover Play: ${hoverPlay?'ON':'OFF'}`; b.className = hoverPlay ? 'btn active-toggle' : 'btn'; }
 };
 
 // patch populateMicList to also fill mob select
