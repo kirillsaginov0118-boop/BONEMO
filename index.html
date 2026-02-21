@@ -2273,127 +2273,80 @@ async function exportAll() {
 }
 
 function analyzeAudioForOto(buffer) {
-    const data = buffer.getChannelData(0);
-    const sr = buffer.sampleRate;
-    const totalMs = (data.length / sr) * 1000;
+  const data = buffer.getChannelData(0);
+  const sr = buffer.sampleRate;
+  const totalMs = (data.length / sr) * 1000;
 
-    // 1. Detect Sound Start (Offset)
-    const startThreshold = 0.015;
-    let startSample = 0;
-    for (let i = 0; i < data.length; i++) {
-        if (Math.abs(data[i]) >= startThreshold) {
-            startSample = i;
-            break;
-        }
+  // ---- 1. Detect start of sound (first significant amplitude) ----
+  const startThreshold = 0.015;
+  let startSample = 0;
+  for (let i = 0; i < data.length; i++) {
+    if (Math.abs(data[i]) >= startThreshold) { startSample = i; break; }
+  }
+
+  // ---- 2. Detect end of sound (last significant amplitude) ----
+  const endThreshold = 0.01;
+  let endSample = data.length - 1;
+  for (let i = data.length - 1; i > startSample; i--) {
+    if (Math.abs(data[i]) >= endThreshold) { endSample = i; break; }
+  }
+
+  const startMs = (startSample / sr) * 1000;
+  const endMs   = (endSample   / sr) * 1000;
+  const activeMs = endMs - startMs;
+
+  // ---- 3. Detect consonant-vowel boundary using short-term energy ----
+  // Window of ~10ms, stride ~5ms. Find where energy stabilises after the
+  // initial spike — that's roughly where the vowel begins.
+  const winSamples = Math.round(sr * 0.010);
+  const stepSamples = Math.round(sr * 0.005);
+  const energies = [];
+  for (let i = startSample; i < endSample - winSamples; i += stepSamples) {
+    let e = 0;
+    for (let j = i; j < i + winSamples; j++) e += data[j] * data[j];
+    energies.push({ ms: ((i + winSamples / 2) / sr) * 1000, e: e / winSamples });
+  }
+
+  // Find peak energy
+  let peakE = 0;
+  for (const pt of energies) if (pt.e > peakE) peakE = pt.e;
+
+  // Vowel boundary = first frame after start where energy > 40% of peak
+  // and we've moved at least a few ms past the initial transient
+  let vowelStartMs = startMs + 80; // default fallback
+  const vowelThresh = peakE * 0.40;
+  let passedTransient = false;
+  let transientEndMs = startMs;
+
+  // Find first local energy peak (end of transient/consonant burst)
+  for (let i = 1; i < energies.length - 1; i++) {
+    if (energies[i].e >= energies[i - 1].e && energies[i].e >= energies[i + 1].e &&
+        energies[i].e > peakE * 0.1) {
+      transientEndMs = energies[i].ms;
+      break;
     }
+  }
 
-    // 2. Detect Sound End (Cutoff calculation)
-    const endThreshold = 0.01;
-    let endSample = data.length - 1;
-    for (let i = data.length - 1; i > startSample; i--) {
-        if (Math.abs(data[i]) >= endThreshold) {
-            endSample = i;
-            break;
-        }
+  // Vowel starts after transient settles and energy is sustained
+  for (const pt of energies) {
+    if (pt.ms > transientEndMs + 20 && pt.e > vowelThresh && !passedTransient) {
+      vowelStartMs = pt.ms;
+      passedTransient = true;
+      break;
     }
+  }
 
-    const startMs = (startSample / sr) * 1000;
-    const endMs = (endSample / sr) * 1000;
+  // ---- 4. Calculate oto values ----
+  const consonantMs = Math.max(30, Math.min(200, Math.round(vowelStartMs - startMs)));
+  const cutoffMs    = Math.max(50, Math.round(totalMs - endMs));
 
-    // 3. Detect Vowel Start (Preutterance)
-    const winSamples = Math.round(sr * 0.010);
-    const stepSamples = Math.round(sr * 0.005);
-    let vowelStartMs = startMs;
-
-    for (let i = startSample; i < endSample - winSamples; i += stepSamples) {
-        let e = 0;
-        for (let j = i; j < i + winSamples; j++) e += data[j] * data[j];
-        if ((e / winSamples) > 0.05) {
-            vowelStartMs = (i / sr) * 1000;
-            break;
-        }
-    }
-
-    // --- UTAU PARAMETER CALCULATION ---
-    // Preutterance: Timing where the vowel starts relative to the offset
-    const preutter = Math.max(10, Math.round(vowelStartMs - startMs));
-
-    // FIX: Consonant (Fixed) MUST be greater than Preutterance.
-    // Adding 50ms ensures the start of the vowel is never stretched or "buzzy".
-    const consonant = preutter + 50;
-
-    // FIX: Using a negative cutoff (ms from the end of the file)
-    const cutoff = -Math.round(totalMs - endMs);
-
-    return {
-        offset: Math.round(startMs),
-        consonant: consonant,
-        cutoff: cutoff,
-        preutter: preutter,
-        overlap: Math.round(preutter * 0.5) // Initial guess for overlap
-    };
-}
-
-// FIX: Ensure the export function uses these specific values
-async function runExport() {
-    const zip = new JSZip();
-    let otoLines = [];
-    const entries = Object.entries(recordedBlobs);
-
-    for (let idx = 0; idx < entries.length; idx++) {
-        const [word, blob] = entries[idx];
-        const dn = word; // Use your existing displayName logic here
-        const fname = '_' + dn;
-        const alias = dn.trim();
-
-        // Convert blob to buffer for analysis
-        const arrayBuffer = await blob.arrayBuffer();
-        const audioBuf = await audioCtx.decodeAudioData(arrayBuffer);
-        const oto = analyzeAudioForOto(audioBuf);
-
-        // Apply smooth overlap (30ms) for standalone vowels
-        const vowels = ['あ','い','う','え','お','ア','イ','ウ','エ','オ','a','i','u','e','o'];
-        let finalOverlap = vowels.includes(alias) ? 30 : oto.overlap;
-
-        // CORRECT OTO FORMAT: filename=alias,offset,consonant,cutoff,preutterance,overlap
-        const line = `${fname}.wav=${alias},${oto.offset},${oto.consonant},${oto.cutoff},${oto.preutter},${finalOverlap}`;
-        otoLines.push(line);
-
-        // Add wav to zip
-        zip.file(`${fname}.wav`, blob);
-    }
-
-    // Add oto.ini to zip
-    zip.file("oto.ini", otoLines.join("\r\n"));
-
-    const content = await zip.generateAsync({type:"blob"});
-    saveAs(content, "voicebank_export.zip");
-}
-
-// Update the export loop to handle aliases and specific overlap for vowels
-async function runExport() {
-    /* ... existing JSZip setup code ... */
-
-    for (let idx = 0; idx < entries.length; idx++) {
-        const [word, blob] = entries[idx];
-        const dn = displayName(word);
-        const fname = '_' + dn;
-        const alias = dn.replace(/\s+/g, '');
-
-        let audioBuf = decodedBuffers[word];
-        const oto = analyzeAudioForOto(audioBuf);
-
-        // FIX: Adjust overlap if the alias is a standalone vowel
-        const vowels = ['あ','い','う','え','お','ア','イ','ウ','エ','オ','a','i','u','e','o'];
-        let finalOverlap = oto.overlap;
-        if (vowels.includes(alias)) {
-            finalOverlap = 30; // Standard smooth overlap for vowels
-        }
-
-        // CORRECT FORMAT: filename=alias,offset,consonant,cutoff,preutterance,overlap
-        otoLines.push(`${fname}.wav=${alias},${oto.offset},${oto.consonant},${oto.cutoff},${oto.preutter},${finalOverlap}`);
-    }
-    /* ... rest of your saveAs(content) logic ... */
+  return {
+    offset:    Math.round(startMs),
+    consonant: consonantMs,
+    cutoff:    -cutoffMs,
+    preutter:  consonantMs,
+    overlap:   Math.round(consonantMs * 0.5)
+  };
 }
 
 async function runExport() {
