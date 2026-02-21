@@ -79,6 +79,18 @@
 
   input[type=range] { -webkit-appearance: none; width: 180px; height: 4px; background: var(--bg3); border: 1px solid var(--border); border-radius: 2px; outline: none; }
   input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--accent); border-radius: 50%; cursor: pointer; box-shadow: 0 0 8px var(--accent); }
+
+  /* ---- PITCH LINE ON SLIDER ---- */
+  .slider-pitch-wrap { position: relative; display: inline-flex; align-items: center; }
+  .slider-pitch-line {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 2px; height: 14px; background: var(--accent);
+    border-radius: 1px; pointer-events: none;
+    box-shadow: 0 0 6px var(--accent), 0 0 12px rgba(0,255,204,0.4);
+    opacity: 0; transition: opacity 0.15s, left 0.05s;
+    left: 0;
+  }
+  .slider-pitch-line.visible { opacity: 1; }
   .tone-val { font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; color: var(--accent); min-width: 60px; }
 
   .preview-btn { padding: 6px 12px; border: 1px solid var(--accent3); background: rgba(255,204,0,0.06); color: var(--accent3); font-family: 'Share Tech Mono', monospace; font-size: 0.75rem; cursor: pointer; border-radius: 2px; transition: all 0.15s; white-space: nowrap; }
@@ -388,7 +400,10 @@
     <div class="tone-control" style="flex:1">
       <label>TARGET TONE</label>
       <div class="tone-row">
-        <input type="range" id="toneSlider" min="80" max="800" value="220" oninput="onToneChange()">
+        <div class="slider-pitch-wrap">
+          <input type="range" id="toneSlider" min="80" max="800" value="220" oninput="onToneChange()">
+          <div class="slider-pitch-line" id="sliderPitchLine"></div>
+        </div>
         <span class="tone-val" id="toneVal">220 Hz</span>
         <select id="noteSelect" onchange="onNoteSelect()">
           <option value="82.41">E2 - 82 Hz</option><option value="87.31">F2 - 87 Hz</option>
@@ -1119,13 +1134,33 @@ function autoCorrelate(buf, sr) {
 }
 function updatePitchUI(freq) {
   const fillEl=document.getElementById('pitchFill'),curEl=document.getElementById('pitchCurrent'),offEl=document.getElementById('pitchOffset');
+  const lineEl=document.getElementById('sliderPitchLine');
   if(!fillEl) return;
-  if(freq<0){fillEl.style.width='0%';curEl.textContent='-- Hz';offEl.textContent='--';offEl.className='pitch-offset';return;}
+  if(freq<0){
+    fillEl.style.width='0%';curEl.textContent='-- Hz';offEl.textContent='--';offEl.className='pitch-offset';
+    if(lineEl) lineEl.classList.remove('visible');
+    return;
+  }
   fillEl.style.width=Math.max(0,Math.min(100,((freq-50)/950)*100))+'%';
   curEl.textContent=freq.toFixed(1)+' Hz';
   const cents=1200*Math.log2(freq/targetFreq),abs=Math.abs(cents);
   offEl.textContent=(cents>0?'+':'')+cents.toFixed(0)+' cents';
   offEl.className=abs<30?'pitch-offset good':abs<80?'pitch-offset warn':'pitch-offset bad';
+  // update slider pitch line
+  if(lineEl) {
+    const slider = document.getElementById('toneSlider');
+    if(slider) {
+      const min=80, max=800;
+      const clampedFreq = Math.max(min, Math.min(max, freq));
+      const pct = (clampedFreq - min) / (max - min);
+      const w = slider.offsetWidth;
+      // account for thumb width (~14px) so it lines up with the track
+      const thumbR = 7;
+      const trackPx = w - thumbR * 2;
+      lineEl.style.left = (thumbR + pct * trackPx - 1) + 'px';
+      lineEl.classList.add('visible');
+    }
+  }
 }
 
 // ---- KEYBOARD ----
