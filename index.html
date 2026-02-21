@@ -35,14 +35,18 @@
   header { padding: 18px 30px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 20px; background: linear-gradient(135deg, var(--bg2), var(--bg)); }
   .skull { font-size: 2.5rem; filter: drop-shadow(0 0 8px var(--accent)); }
 
-  .app { display: grid; grid-template-columns: 280px 1fr; grid-template-rows: auto 1fr auto; height: calc(100vh - 73px); }
+  .app { display: grid; grid-template-columns: 280px 1fr 220px; grid-template-rows: auto 1fr auto; height: calc(100vh - 73px); }
 
-  .sidebar { grid-row: 1 / 4; border-right: 1px solid var(--border); background: var(--bg2); display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; }
+  .sidebar { grid-row: 1 / 3; border-right: 1px solid var(--border); background: var(--bg2); display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; }
   .sidebar::-webkit-scrollbar { width: 4px; }
   .sidebar::-webkit-scrollbar-track { background: var(--bg); }
   .sidebar::-webkit-scrollbar-thumb { background: var(--border); }
   .sidebar-section { padding: 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
   .sidebar-section h3 { font-family: 'Share Tech Mono', monospace; font-size: 0.7rem; color: var(--muted); letter-spacing: 0.2em; margin-bottom: 10px; text-transform: uppercase; }
+
+  .right-sidebar { grid-column: 3; grid-row: 1 / 3; border-left: 1px solid var(--border); background: var(--bg2); display: flex; flex-direction: column; overflow: hidden; }
+  .right-sidebar-header { padding: 10px 16px 6px; font-family: 'Share Tech Mono', monospace; font-size: 0.65rem; color: var(--muted); letter-spacing: 0.15em; flex-shrink: 0; border-bottom: 1px solid var(--border); }
+  .right-sidebar .word-list { flex: 1; min-height: 0; }
 
   .btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--border); background: var(--bg3); color: var(--text); font-family: 'Rajdhani', 'Noto Sans JP', sans-serif; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.15s; letter-spacing: 0.05em; border-radius: 2px; width: 100%; text-align: left; justify-content: flex-start; }
   .btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,255,204,0.05); box-shadow: 0 0 10px rgba(0,255,204,0.1); }
@@ -62,6 +66,11 @@
   .word-item.done { border-left-color: var(--good); }
   .word-item.done .word-status { color: var(--good); }
   .word-item .word-status { font-size: 0.65rem; margin-left: auto; opacity: 0.7; font-family: 'Share Tech Mono', monospace; }
+  /* right sidebar — flip accent border to right side */
+  .right-sidebar .word-item { border-left: none; border-right: 2px solid transparent; }
+  .right-sidebar .word-item:hover { border-right-color: var(--muted); }
+  .right-sidebar .word-item.active { border-right-color: var(--accent); }
+  .right-sidebar .word-item.done { border-right-color: var(--good); }
 
   .main-top { padding: 20px 30px; border-bottom: 1px solid var(--border); background: var(--bg2); display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
   .tone-control { display: flex; flex-direction: column; gap: 6px; }
@@ -132,7 +141,7 @@
   .modal-btn.cancel { border-color: var(--muted); color: var(--muted); background: transparent; }
   .modal-btn.cancel:hover { border-color: var(--text); color: var(--text); }
 
-  .status-bar { padding: 8px 30px; background: var(--bg); border-top: 1px solid var(--border); font-family: 'Share Tech Mono', monospace; font-size: 0.7rem; color: var(--muted); display: flex; gap: 20px; grid-column: 1 / 3; }
+  .status-bar { padding: 8px 30px; background: var(--bg); border-top: 1px solid var(--border); font-family: 'Share Tech Mono', monospace; font-size: 0.7rem; color: var(--muted); display: flex; gap: 20px; grid-column: 1 / 4; }
   .status-item span { color: var(--accent); margin-left: 4px; }
 
   .no-reclist { text-align: center; color: var(--muted); font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; line-height: 2; }
@@ -269,6 +278,7 @@
   @media (max-width: 700px) {
     /* hide desktop sidebar and status bar entirely */
     .sidebar { display: none !important; }
+    .right-sidebar { display: none !important; }
     .status-bar { display: none !important; }
     .main-top { display: none !important; }
     .header-mic { display: none !important; }
@@ -365,9 +375,12 @@
         <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--muted);margin-top:6px;line-height:1.5">trims silence from start + end<br>raise until noise gets cut cleanly</div>
       </div>
     </div>
-    <div style="padding:10px 16px 4px; font-family:'Share Tech Mono',monospace; font-size:0.65rem; color:var(--muted); letter-spacing:0.15em; flex-shrink:0">WORD LIST</div>
+  </div>
+
+  <div class="right-sidebar">
+    <div class="right-sidebar-header">WORD LIST</div>
     <div class="word-list" id="wordList">
-      <div class="no-reclist"><div class="big">&#9900;</div>load a reclist.txt<br>to begin...</div>
+      <div class="no-reclist"><div class="big">&#9900;</div>load a reclist<br>to begin...</div>
     </div>
   </div>
 
