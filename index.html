@@ -307,6 +307,12 @@
   <div class="modal">
     <h2>// EXPORT COMPLETE //</h2>
     <p id="exportMsg">your recordings are packaged and ready.</p>
+    <div style="margin-bottom:12px">
+      <label style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--muted);letter-spacing:0.15em;display:block;margin-bottom:6px">VOICEBANK NAME</label>
+      <input type="text" id="vbNameInput" class="modal-input" placeholder="MyVoicebank" value="MyVoicebank" style="width:100%">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--muted);margin-top:6px">used for character.txt, character.yaml, and zip folder name</div>
+    </div>
+    <div id="exportProgressMsg" style="font-family:'Share Tech Mono',monospace;font-size:0.75rem;color:var(--accent3);margin-bottom:10px;display:none">generating .frq files...</div>
     <div class="modal-row">
       <button class="modal-btn" id="downloadZipBtn">download .zip</button>
       <button class="modal-btn cancel" onclick="closeModal('exportModal')">close</button>
@@ -865,25 +871,153 @@ async function chooseSaveFolder() {
   } catch(e) {}
 }
 
+// ---- FRQ GENERATION ----
+// Generates a UTAU-compatible .frq binary from an AudioBuffer using autocorrelation pitch detection.
+function generateFrqBinary(audioBuffer) {
+  const HOP = 256;
+  const sr = audioBuffer.sampleRate;
+  const rawData = audioBuffer.getChannelData(0); // mono
+  const nFrames = audioBuffer.length;
+  const nPoints = Math.floor(nFrames / HOP);
+
+  const freqs = [];
+  for (let i = 0; i < nPoints; i++) {
+    const start = i * HOP;
+    const frame = rawData.slice(start, start + HOP * 4); // use 4 hops for autocorrelation window
+    const f = autoCorrelateBuffer(frame, sr);
+    freqs.push(f > 0 ? f : 0.0);
+  }
+
+  const valid = freqs.filter(f => f > 0);
+  const avgPitch = valid.length ? valid.reduce((a, b) => a + b, 0) / valid.length : 0.0;
+
+  // Build binary: FREQ0003 header + hop(int32) + avgPitch(float64) + 16 null bytes + count(int32) + [freq(f64), amp(f64)]...
+  const headerStr = 'FREQ0003';
+  const totalDoubles = freqs.length * 2;
+  const byteLen = 8 + 4 + 8 + 16 + 4 + totalDoubles * 8;
+  const buf = new ArrayBuffer(byteLen);
+  const view = new DataView(buf);
+  let off = 0;
+
+  for (let i = 0; i < 8; i++) { view.setUint8(off++, headerStr.charCodeAt(i)); }
+  view.setInt32(off, HOP, true); off += 4;
+  view.setFloat64(off, avgPitch, true); off += 8;
+  for (let i = 0; i < 16; i++) { view.setUint8(off++, 0); }
+  view.setInt32(off, freqs.length, true); off += 4;
+  for (const f of freqs) {
+    view.setFloat64(off, f, true); off += 8;
+    view.setFloat64(off, 0.0, true); off += 8;
+  }
+  return buf;
+}
+
+function autoCorrelateBuffer(buf, sr) {
+  let SIZE = buf.length;
+  let rms = 0;
+  for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+  rms = Math.sqrt(rms / SIZE);
+  if (rms < 0.01) return -1;
+
+  let r1 = 0, r2 = SIZE - 1;
+  for (let i = 0; i < SIZE / 2; i++) { if (Math.abs(buf[i]) < 0.2) { r1 = i; break; } }
+  for (let i = 1; i < SIZE / 2; i++) { if (Math.abs(buf[SIZE - i]) < 0.2) { r2 = SIZE - i; break; } }
+  buf = buf.slice(r1, r2); SIZE = buf.length;
+  if (SIZE < 2) return -1;
+
+  const c = new Array(SIZE).fill(0);
+  for (let i = 0; i < SIZE; i++) for (let j = 0; j < SIZE - i; j++) c[i] += buf[j] * buf[j + i];
+  let d = 0;
+  while (d < SIZE - 1 && c[d] > c[d + 1]) d++;
+  let maxval = -1, maxpos = -1;
+  for (let i = d; i < SIZE; i++) { if (c[i] > maxval) { maxval = c[i]; maxpos = i; } }
+  if (maxpos <= 0 || maxpos >= SIZE - 1) return -1;
+  let T0 = maxpos;
+  const x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1], a = (x1 + x3 - 2 * x2) / 2, b = (x3 - x1) / 2;
+  if (a) T0 -= b / (2 * a);
+  const freq = sr / T0;
+  return (freq >= 55 && freq <= 1000) ? freq : 0.0;
+}
+
 // ---- EXPORT ----
 async function exportAll() {
   if (!Object.keys(recordingBlobs).length) { alert('no recordings yet... hold the record key first.'); return; }
+  openModal('exportModal');
+  document.getElementById('exportMsg').textContent = 'preparing export...';
+  document.getElementById('exportProgressMsg').style.display = 'none';
+  document.getElementById('downloadZipBtn').onclick = null;
+  document.getElementById('downloadZipBtn').textContent = 'building...';
+  document.getElementById('downloadZipBtn').style.opacity = '0.5';
+
   if (!document.querySelector('script[src*="jszip"]')) {
     const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; document.head.appendChild(s);
     await new Promise(res => s.onload = res);
   }
-  const zip = new JSZip(), folder = zip.folder('bonemo_export'), otoLines = [];
-  for (const [word, blob] of Object.entries(recordingBlobs)) {
-    const dn = displayName(word);
-    folder.file(dn + '.wav', await blob.arrayBuffer());
-    otoLines.push(`${dn}.wav=${dn},0,80,-500,40,30`);
+
+  const vbName = (document.getElementById('vbNameInput')?.value.trim() || 'MyVoicebank').replace(/[\\/:*?"<>|]/g, '_');
+  const zip = new JSZip();
+  const folder = zip.folder(vbName);
+  const otoLines = [];
+  const entries = Object.entries(recordingBlobs);
+
+  document.getElementById('exportProgressMsg').style.display = 'block';
+  document.getElementById('exportProgressMsg').textContent = `generating .frq files (0 / ${entries.length})...`;
+
+  const ctx = getAudioCtx();
+
+  for (let idx = 0; idx < entries.length; idx++) {
+    const [word, blob] = entries[idx];
+    const dn = displayName(word);         // e.g. "あ" or "ka ki"
+    const fname = '_' + dn;               // e.g. "_あ" or "_ka ki"
+
+    // wav
+    folder.file(fname + '.wav', await blob.arrayBuffer());
+
+    // oto.ini line — kana alias is just the dn (strip spaces for alias in sequences)
+    const alias = dn.replace(/\s+/g, '');
+    otoLines.push(`${fname}.wav=${alias},0,80,-500,40,30`);
+
+    // .frq — decode audio and run pitch analysis
+    try {
+      let audioBuf = decodedBuffers[word];
+      if (!audioBuf) {
+        const ab = await blob.arrayBuffer();
+        audioBuf = await ctx.decodeAudioData(ab.slice(0));
+      }
+      const frqBinary = generateFrqBinary(audioBuf);
+      folder.file(fname + '.wav.frq', frqBinary);
+    } catch(e) {
+      console.warn('frq gen failed for', word, e);
+    }
+
+    document.getElementById('exportProgressMsg').textContent = `generating .frq files (${idx + 1} / ${entries.length})...`;
+    // yield to UI thread every few items
+    if (idx % 5 === 0) await new Promise(r => setTimeout(r, 0));
   }
+
+  // oto.ini (UTF-8 with BOM)
   folder.file('oto.ini', '\uFEFF' + otoLines.join('\r\n'));
+
+  // character.txt
+  folder.file('character.txt', `name=${vbName}\r\n`);
+
+  // character.yaml
+  folder.file('character.yaml',
+    `name: ${vbName}\r\ntext_file_encoding: utf-8\r\nportrait_opacity: 0.67\r\nportrait_height: 0\r\n`
+  );
+
+  document.getElementById('exportProgressMsg').style.display = 'none';
+  document.getElementById('exportMsg').textContent =
+    `${entries.length} wavs + frq files + oto.ini + character files ready.`;
+
   const content = await zip.generateAsync({ type: 'blob' });
   const url = URL.createObjectURL(content);
-  document.getElementById('exportMsg').textContent = `${Object.keys(recordingBlobs).length} recordings + oto.ini ready.`;
-  document.getElementById('downloadZipBtn').onclick = () => { const a = document.createElement('a'); a.href = url; a.download = 'bonemo_export.zip'; a.click(); };
-  openModal('exportModal');
+  const dlBtn = document.getElementById('downloadZipBtn');
+  dlBtn.textContent = 'download .zip';
+  dlBtn.style.opacity = '';
+  dlBtn.onclick = () => {
+    const a = document.createElement('a');
+    a.href = url; a.download = vbName + '.zip'; a.click();
+  };
 }
 
 // ---- CLEAR ----
