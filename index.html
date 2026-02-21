@@ -144,7 +144,51 @@
   .keys-hint { font-family: 'Share Tech Mono', monospace; font-size: 0.65rem; color: var(--muted); text-align: center; }
   .keys-hint .key { display: inline-block; padding: 2px 6px; border: 1px solid var(--muted); border-radius: 2px; margin: 0 3px; color: var(--text); }
 
-  /* ---- MIC IN HEADER (desktop) ---- */
+  /* ---- MIC PANIC ---- */
+  @keyframes micPanic {
+    0%   { border-color: var(--bad); color: var(--bad); box-shadow: 0 0 0 rgba(255,68,102,0); transform: translateX(0); }
+    10%  { transform: translateX(-4px); }
+    20%  { transform: translateX(4px); border-color: var(--accent3); color: var(--accent3); box-shadow: 0 0 18px rgba(255,204,0,0.6); }
+    30%  { transform: translateX(-4px); }
+    40%  { transform: translateX(4px); border-color: var(--bad); color: var(--bad); box-shadow: 0 0 24px rgba(255,68,102,0.8); }
+    50%  { transform: translateX(-3px); }
+    60%  { transform: translateX(3px); }
+    70%  { transform: translateX(-2px); border-color: var(--accent3); color: var(--accent3); }
+    80%  { transform: translateX(2px); }
+    90%  { transform: translateX(-1px); border-color: var(--bad); color: var(--bad); }
+    100% { transform: translateX(0); box-shadow: 0 0 16px rgba(255,68,102,0.5); }
+  }
+  @keyframes micPanicLabel {
+    0%, 100% { color: var(--bad); }
+    50% { color: var(--accent3); }
+  }
+  .header-mic.panic label { animation: micPanicLabel 0.4s ease infinite; }
+  .header-mic.panic select {
+    border-color: var(--bad) !important;
+    color: var(--bad) !important;
+    animation: micPanic 0.5s ease infinite;
+  }
+  .header-mic.panic::after {
+    content: '!! NO SIGNAL — TRY SOMETHING ELSE !!';
+    display: block;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.55rem;
+    color: var(--bad);
+    letter-spacing: 0.1em;
+    animation: micPanicLabel 0.3s ease infinite;
+    white-space: nowrap;
+  }
+  /* mobile panic — shake the settings gear */
+  @keyframes gearPanic {
+    0%,100% { transform: rotate(0deg); color: var(--muted); border-color: var(--border); }
+    15% { transform: rotate(-20deg) scale(1.2); color: var(--bad); border-color: var(--bad); box-shadow: 0 0 12px rgba(255,68,102,0.6); }
+    30% { transform: rotate(20deg) scale(1.2); color: var(--accent3); border-color: var(--accent3); box-shadow: 0 0 16px rgba(255,204,0,0.6); }
+    45% { transform: rotate(-15deg); color: var(--bad); }
+    60% { transform: rotate(15deg); }
+    75% { transform: rotate(-8deg); }
+    90% { transform: rotate(5deg); }
+  }
+  .mob-settings-btn.panic { animation: gearPanic 0.6s ease infinite; }
   .header-mic { display: flex; flex-direction: column; gap: 4px; margin-left: auto; }
   .header-mic label { font-family: 'Share Tech Mono', monospace; font-size: 0.6rem; color: var(--muted); letter-spacing: 0.15em; }
   .header-mic select { font-size: 0.8rem; padding: 5px 10px; max-width: 220px; }
@@ -540,6 +584,44 @@ function isSequence(w) { return w.includes('_'); }
 // ---- AUDIO CTX ----
 function getAudioCtx() { if (!audioCtx) audioCtx = new AudioContext(); return audioCtx; }
 
+// ---- MIC PANIC ----
+let micPanicTimeout = null;
+let silenceCheckInterval = null;
+
+function triggerMicPanic() {
+  document.getElementById('micSelect')?.closest('.header-mic')?.classList.add('panic');
+  document.querySelector('.mob-settings-btn')?.classList.add('panic');
+}
+function clearMicPanic() {
+  document.getElementById('micSelect')?.closest('.header-mic')?.classList.remove('panic');
+  document.querySelector('.mob-settings-btn')?.classList.remove('panic');
+  if (micPanicTimeout) { clearTimeout(micPanicTimeout); micPanicTimeout = null; }
+}
+
+function startSilenceWatch() {
+  if (silenceCheckInterval) return;
+  let silentStreak = 0;
+  silenceCheckInterval = setInterval(() => {
+    if (!analyserNode) return;
+    const buf = new Float32Array(analyserNode.fftSize);
+    analyserNode.getFloatTimeDomainData(buf);
+    let rms = 0;
+    for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
+    rms = Math.sqrt(rms / buf.length);
+    if (rms < 0.002) {
+      silentStreak++;
+      // 3 seconds of total silence = something's wrong
+      if (silentStreak >= 6) { triggerMicPanic(); }
+    } else {
+      silentStreak = 0;
+      clearMicPanic();
+    }
+  }, 500);
+}
+function stopSilenceWatch() {
+  if (silenceCheckInterval) { clearInterval(silenceCheckInterval); silenceCheckInterval = null; }
+}
+
 // ---- ALWAYS-ON MIC ----
 // Call once after mic permission is granted. Keeps analyser alive permanently.
 async function initAlwaysOnMic() {
@@ -551,11 +633,15 @@ async function initAlwaysOnMic() {
     alwaysOnSource = ctx.createMediaStreamSource(mediaStream);
     analyserNode = ctx.createAnalyser(); analyserNode.fftSize = 2048;
     alwaysOnSource.connect(analyserNode);
+    clearMicPanic();
     // populate mic list once we have permission
     populateMicList();
     // start live waveform + pitch if main UI is up
-    if (words.length) startWaveAndPitch();
-  } catch(e) { console.warn('mic init failed:', e.message); }
+    if (words.length) { startWaveAndPitch(); startSilenceWatch(); }
+  } catch(e) {
+    console.warn('mic init failed:', e.message);
+    triggerMicPanic();
+  }
 }
 
 // ---- TOGGLES ----
@@ -822,7 +908,7 @@ function confirmReclist() {
   closeModal('reclistModal');
   renderWordList(); renderMain(); updateStatus();
   // init always-on mic as soon as we have a reclist
-  initAlwaysOnMic();
+  initAlwaysOnMic().then(() => { if (analyserNode) startSilenceWatch(); });
 }
 
 // ---- PLAYBACK ----
@@ -1064,10 +1150,13 @@ async function onMicChange() {
   const sel = document.getElementById('micSelect');
   selectedDeviceId = sel ? sel.value : '';
   // tear down existing stream so next initAlwaysOnMic picks new device
+  stopSilenceWatch();
+  clearMicPanic();
   if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
   if (alwaysOnSource) { try { alwaysOnSource.disconnect(); } catch(e) {} alwaysOnSource = null; }
   cancelAnimationFrame(waveAnimId); cancelAnimationFrame(pitchAnimId);
   await initAlwaysOnMic();
+  if (analyserNode && words.length) startSilenceWatch();
 }
 
 // ---- FRQ GENERATION ----
