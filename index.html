@@ -906,9 +906,15 @@
   <div class="modal">
     <h2>// LOAD RECLIST //</h2>
     <p>load a reclist.txt — one entry per line, or space-separated. japanese (UTF-8) works fine.</p>
-    <input type="file" id="reclistFile" accept=".txt,.reclist" style="display:none" onchange="readReclistFile(event)">
-    <button class="modal-btn" onclick="document.getElementById('reclistFile').click()">browse file</button>
-    <textarea id="reclistText" class="modal-input" style="width:100%;height:140px;margin-top:12px;resize:vertical;font-size:0.9rem" placeholder="あ い う え お&#10;か き く け こ&#10;or&#10;a&#10;i&#10;u&#10;..."></textarea>
+    <input type="file" id="reclistFile" accept=".txt,.reclist,.ini" style="display:none" onchange="readReclistFile(event)">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="modal-btn" onclick="document.getElementById('reclistFile').click()">browse file</button>
+      <button class="modal-btn" onclick="convertAliasesToKana()" title="Converts romaji aliases like 'a k' or 'i ky' into hiragana where possible" style="border-color:var(--accent3);color:var(--accent3);background:rgba(255,204,0,0.06)">あ Convert aliases → Kana</button>
+    </div>
+    <div id="otoDetectedBadge" style="display:none;font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--good);margin-top:8px;padding:6px 10px;border:1px solid var(--good);border-radius:2px;background:rgba(0,255,136,0.06)">
+      ✔ oto.ini detected — timing values will be used for recording cues. Numbers stripped from word list.
+    </div>
+    <textarea id="reclistText" class="modal-input" style="width:100%;height:140px;margin-top:12px;resize:vertical;font-size:0.9rem" placeholder="あ い う え お&#10;か き く け こ&#10;or paste oto.ini content&#10;(filename.wav=alias,offset,consonant,cutoff,preutterance,overlap)" oninput="detectOtoInTextarea()"></textarea>
     <div class="modal-row">
       <button class="modal-btn cancel" onclick="closeModal('reclistModal')">cancel</button>
       <button class="modal-btn" onclick="confirmReclist()">load</button>
@@ -939,6 +945,7 @@
 // ---- STATE ----
 let words = [], currentIdx = 0;
 let recordingBlobs = {}, decodedBuffers = {};
+let otoEntries = null; // Map<filename, [{alias,offset,consonant,cutoff,preutterance,overlap}]> when oto.ini loaded
 let targetFreq = 220;
 let audioCtx = null, mediaStream = null, mediaRecorder = null;
 let isRecording = false, recordedChunks = [];
@@ -1488,6 +1495,7 @@ function renderMain() {
 
   document.getElementById('mainContent').innerHTML = `
     <div class="current-word ${done?'done-word':''}" id="currentWordEl" style="flex-direction:column;gap:4px;font-size:${fontSize}">${displayWord}</div>
+    ${otoEntries ? `<div id="otoCueBadge" style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--accent3);border:1px solid rgba(255,204,0,0.4);padding:3px 10px;border-radius:2px;background:rgba(255,204,0,0.06);letter-spacing:0.12em">OTO MODE — cue lines active · auto-stop enabled</div>` : ''}
     <canvas id="waveCanvas"></canvas>
     <div class="pitch-section">
       <div class="pitch-label">PITCH METER</div>
@@ -1633,19 +1641,104 @@ function readReclistFile(e) {
   };
   reader.readAsArrayBuffer(file);
 }
+// oto.ini parsing and state
+function _parseOtoIni(text) {
+  // Returns a Map: filename -> array of {alias, offset, consonant, cutoff, preutterance, overlap}
+  // Also builds the words list from unique aliases (the display word is the alias)
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith(';'));
+  // Detect oto.ini: lines must match  filename.wav=alias,num,num,num,num,num
+  const OTO_RE = /^(.+\.wav)=([^,]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+)$/i;
+  const valid = lines.filter(l => OTO_RE.test(l));
+  if (valid.length === 0) return null; // not an oto.ini
+
+  const map = new Map(); // filename -> entries
+  const wordOrder = []; // insertion order for unique aliases
+  const seen = new Set();
+  for (const line of valid) {
+    const m = line.match(OTO_RE);
+    const [, filename, alias, offset, consonant, cutoff, preutterance, overlap] = m;
+    const entry = {
+      alias,
+      offset: parseFloat(offset),
+      consonant: parseFloat(consonant),
+      cutoff: parseFloat(cutoff),
+      preutterance: parseFloat(preutterance),
+      overlap: parseFloat(overlap),
+    };
+    if (!map.has(filename)) map.set(filename, []);
+    map.get(filename).push(entry);
+    if (!seen.has(alias)) { seen.add(alias); wordOrder.push(alias); }
+  }
+  return { map, wordOrder };
+}
+
 function confirmReclist() {
   const text = document.getElementById('reclistText').value.trim(); if (!text) return;
   words = [];
-  for (const line of text.split('\n')) {
-    const tokens = line.trim().split(/\s+/).filter(t => t.length > 0);
-    words.push(...tokens);
+  otoEntries = null;
+
+  const parsed = _parseOtoIni(text);
+  if (parsed) {
+    otoEntries = parsed.map;
+    words = parsed.wordOrder;
+  } else {
+    // plain reclist: each token on each line is one word
+    for (const line of text.split('\n')) {
+      const tokens = line.trim().split(/\s+/).filter(t => t.length > 0);
+      words.push(...tokens);
+    }
   }
+
   recordingBlobs = {}; decodedBuffers = {}; currentIdx = 0;
   manualTrimWords.clear();
   closeModal('reclistModal');
   renderWordList(); renderMain(); updateStatus();
   // init always-on mic as soon as we have a reclist
   initAlwaysOnMic().then(() => { if (analyserNode) startSilenceWatch(); });
+}
+
+// Convert romaji alias like "a k" "i k" "き" etc. → Japanese kana where possible
+function _romajiAliasToKana(alias) {
+  // Build reverse map from romaji to hiragana
+  const rev = {};
+  for (const [k, v] of Object.entries(romajiMap)) rev[v] = rev[v] || k;
+  for (const [k, v] of Object.entries(digraphMap)) rev[v] = rev[v] || k;
+  // alias may be like "a k" or "i ky" or "きゅ" or "k -"
+  // If it already contains kana, return as-is
+  if ([...alias].some(c => c >= '\u3040' && c <= '\u30FF')) return alias;
+  // Try to convert each romaji token to kana
+  const parts = alias.trim().split(/\s+/);
+  return parts.map(p => rev[p] || p).join(' ');
+}
+
+function detectOtoInTextarea() {
+  const ta = document.getElementById('reclistText'); if (!ta) return;
+  const badge = document.getElementById('otoDetectedBadge'); if (!badge) return;
+  const parsed = _parseOtoIni(ta.value.trim());
+  badge.style.display = parsed ? 'block' : 'none';
+}
+
+function convertAliasesToKana() {
+  const ta = document.getElementById('reclistText');
+  if (!ta) return;
+  const text = ta.value.trim();
+  const parsed = _parseOtoIni(text);
+  if (!parsed) {
+    // Plain reclist: convert each token
+    const lines = text.split('\n');
+    ta.value = lines.map(line => {
+      const tokens = line.trim().split(/\s+/).filter(t => t.length > 0);
+      return tokens.map(t => _romajiAliasToKana(t)).join(' ');
+    }).join('\n');
+    return;
+  }
+  // oto.ini: convert the alias part of each entry
+  const lines = text.split('\n');
+  ta.value = lines.map(line => {
+    const m = line.match(/^(.+\.wav=)([^,]+)(,.*)$/);
+    if (!m) return line;
+    return m[1] + _romajiAliasToKana(m[2]) + m[3];
+  }).join('\n');
 }
 
 // ---- PLAYBACK ----
@@ -1719,6 +1812,36 @@ function _repaint(canvas) {
 
   // Cache the waveform pixels so drag overlay can restore them cheaply
   _waveformCache = { imageData: ctx.getImageData(0, 0, W, H), word: w, W, H };
+
+  // draw oto.ini cue lines on the playback canvas
+  if (otoEntries) {
+    const cues = _getOtoCueTimes();
+    if (cues && cues.length > 0 && fullBuf) {
+      const totalMs = (fullBuf.length / fullBuf.sampleRate) * 1000;
+      ctx.save();
+      for (const cue of cues) {
+        const xPos = (cue.offset / totalMs) * W;
+        if (xPos < 0 || xPos > W) continue;
+        // vertical cut line
+        ctx.strokeStyle = 'rgba(255,204,0,0.85)';
+        ctx.shadowColor = 'rgba(255,204,0,0.7)';
+        ctx.shadowBlur = 6;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(xPos, 0); ctx.lineTo(xPos, H);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        // alias label
+        ctx.fillStyle = 'rgba(255,220,80,0.95)';
+        ctx.font = 'bold 11px "Share Tech Mono", monospace';
+        const labelX = Math.min(xPos + 3, W - 48);
+        ctx.fillRect(labelX - 1, 3, ctx.measureText(cue.alias).width + 4, 15);
+        ctx.fillStyle = '#1a1a24';
+        ctx.fillText(cue.alias, labelX + 1, 14);
+      }
+      ctx.restore();
+    }
+  }
 
   // draw overlay on top
   _repaintOverlay(canvas);
@@ -1948,6 +2071,8 @@ async function startRecording() {
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
     mediaRecorder.onstop = processRecording;
     mediaRecorder.start();
+    _recStartTime = getAudioCtx().currentTime;
+    if (otoEntries) _scheduleOtoAutoStop();
     document.getElementById('currentWordEl')?.classList.add('recording');
     const ind = document.getElementById('recIndicator');
     if (ind) { ind.classList.add('active'); ind.style.opacity = ''; }
@@ -1968,6 +2093,7 @@ async function startRecording() {
 function stopRecording() {
   if (!isRecording) return;
   isRecording = false;
+  if (_otoAutoStopTimer) { clearTimeout(_otoAutoStopTimer); _otoAutoStopTimer = null; }
 
   if (pendingRecordTimeout !== null) {
     clearTimeout(pendingRecordTimeout);
@@ -2041,6 +2167,50 @@ function processRecording() {
   reader.readAsArrayBuffer(blob);
 }
 
+// ---- OTO CUE STATE ----
+let _recStartTime = null; // AudioContext time when recording started
+let _otoAutoStopTimer = null;
+
+function _getOtoEntriesForCurrentWord() {
+  if (!otoEntries) return null;
+  const w = words[currentIdx]; if (!w) return null;
+  // find a filename whose entries include this alias
+  for (const [filename, entries] of otoEntries) {
+    const match = entries.find(e => e.alias === w);
+    if (match) return { filename, entries };
+  }
+  return null;
+}
+
+// Returns sorted list of cut times in ms (offset of each alias in the shared WAV)
+function _getOtoCueTimes() {
+  const info = _getOtoEntriesForCurrentWord(); if (!info) return null;
+  // All entries sharing the same filename as the current word
+  const times = info.entries.map(e => ({ alias: e.alias, offset: e.offset, cutoff: e.cutoff }));
+  times.sort((a, b) => a.offset - b.offset);
+  return times;
+}
+
+function _scheduleOtoAutoStop() {
+  if (_otoAutoStopTimer) { clearTimeout(_otoAutoStopTimer); _otoAutoStopTimer = null; }
+  if (!otoEntries) return;
+  const cues = _getOtoCueTimes(); if (!cues || !cues.length) return;
+  // The last cue's end = its offset - cutoff (cutoff is negative = from end, positive = abs endpoint)
+  const lastCue = cues[cues.length - 1];
+  let endMs;
+  if (lastCue.cutoff < 0) {
+    // cutoff is negative: means "this many ms from end" — we don't know WAV length so use offset + 600ms padding
+    endMs = lastCue.offset + 600;
+  } else {
+    endMs = lastCue.cutoff;
+  }
+  // endMs is relative to start of WAV. recOffset may shift things, add a small 200ms tail buffer
+  const delay = endMs + 200;
+  _otoAutoStopTimer = setTimeout(() => {
+    if (isRecording) stopRecording();
+  }, delay);
+}
+
 // ---- WAVEFORM ----
 function startWaveAndPitch() { drawWave(); detectPitch(); }
 function drawWave() {
@@ -2048,21 +2218,78 @@ function drawWave() {
   const ctx2d = canvas.getContext('2d');
   canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
   const bufLen = analyserNode.frequencyBinCount, dataArr = new Uint8Array(bufLen);
-  function draw() {
+  // rolling time buffer for oto cue position tracking (circular, ~5s at 60fps)
+  const MAX_HISTORY_MS = 8000;
+  let recElapsedMs = 0;
+  let lastFrameTs = null;
+
+  function draw(ts) {
     if (!analyserNode || !document.getElementById('waveCanvas')) { cancelAnimationFrame(waveAnimId); return; }
     waveAnimId = requestAnimationFrame(draw);
+
+    // track elapsed ms while recording
+    if (isRecording && lastFrameTs !== null) recElapsedMs += ts - lastFrameTs;
+    if (!isRecording) recElapsedMs = 0;
+    lastFrameTs = ts;
+
     analyserNode.getByteTimeDomainData(dataArr);
-    ctx2d.fillStyle = '#1a1a24'; ctx2d.fillRect(0, 0, canvas.width, canvas.height);
+    const W = canvas.width, H = canvas.height;
+    ctx2d.fillStyle = '#1a1a24'; ctx2d.fillRect(0, 0, W, H);
     ctx2d.lineWidth = 1.5; ctx2d.strokeStyle = '#00ffcc'; ctx2d.shadowBlur = 6; ctx2d.shadowColor = '#00ffcc';
     ctx2d.beginPath();
-    const sliceW = canvas.width / bufLen; let x = 0;
+    const sliceW = W / bufLen; let x = 0;
     for (let i = 0; i < bufLen; i++) {
-      const y = (dataArr[i] / 128.0 * canvas.height) / 2;
+      const y = (dataArr[i] / 128.0 * H) / 2;
       i === 0 ? ctx2d.moveTo(x, y) : ctx2d.lineTo(x, y); x += sliceW;
     }
     ctx2d.stroke();
+    ctx2d.shadowBlur = 0;
+
+    // --- OTO CUE LINES overlay during recording ---
+    if (isRecording && otoEntries) {
+      const cues = _getOtoCueTimes();
+      if (cues && cues.length > 0) {
+        // The canvas represents the current "window" of audio going right
+        // We show a scrolling timeline: right edge = now, left edge = now - MAX_HISTORY_MS
+        const nowMs = recElapsedMs;
+        const windowMs = MAX_HISTORY_MS;
+
+        ctx2d.save();
+        for (const cue of cues) {
+          const cueMs = cue.offset; // when in the recording this sound starts
+          // position from left: (cueMs - (nowMs - windowMs)) / windowMs * W
+          const xPos = ((cueMs - (nowMs - windowMs)) / windowMs) * W;
+          if (xPos < 0 || xPos > W) continue;
+
+          // Draw glowing vertical line
+          ctx2d.strokeStyle = 'rgba(255,204,0,0.9)';
+          ctx2d.shadowColor = 'rgba(255,204,0,0.8)';
+          ctx2d.shadowBlur = 8;
+          ctx2d.lineWidth = 2;
+          ctx2d.beginPath();
+          ctx2d.moveTo(xPos, 0);
+          ctx2d.lineTo(xPos, H);
+          ctx2d.stroke();
+
+          // Label above line
+          ctx2d.shadowBlur = 0;
+          ctx2d.fillStyle = 'rgba(255,204,0,0.9)';
+          ctx2d.font = 'bold 11px "Share Tech Mono", monospace';
+          ctx2d.fillText(cue.alias, Math.min(xPos + 3, W - 40), 13);
+        }
+        // Draw "now" cursor line
+        ctx2d.strokeStyle = 'rgba(255,68,102,0.7)';
+        ctx2d.shadowColor = 'rgba(255,68,102,0.6)';
+        ctx2d.shadowBlur = 6;
+        ctx2d.lineWidth = 1.5;
+        ctx2d.beginPath();
+        ctx2d.moveTo(W, 0); ctx2d.lineTo(W, H);
+        ctx2d.stroke();
+        ctx2d.restore();
+      }
+    }
   }
-  draw();
+  draw(0);
 }
 
 // ---- PITCH ----
